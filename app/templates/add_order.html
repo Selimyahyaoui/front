@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ajout de commande</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <img src="/static/bnp_logo.png" class="logo" alt="BNP">
+        <h1>Ajouter une commande Dell</h1>
+    </header>
+
+    <div class="content">
+        {% if message %}
+            <p><strong>{{ message }}</strong></p>
+        {% endif %}
+
+        <form action="/orders/add" method="post">
+            <label for="po_number">PO Number :</label><br>
+            <input type="text" name="po_number" required><br><br>
+
+            <label for="order_status">Statut :</label><br>
+            <select name="order_status" required>
+                <option value="Pending">Pending</option>
+                <option value="Processing">Processing</option>
+                <option value="Shipped">Shipped</option>
+                <option value="Cancelled">Cancelled</option>
+            </select><br><br>
+
+            <button type="submit">➕ Ajouter</button>
+        </form>
+
+        <p><a href="/">← Retour à l'accueil</a></p>
+    </div>
+</body>
+</html>

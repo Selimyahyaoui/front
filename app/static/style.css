@@ -1,0 +1,82 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f9fafb;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #006442;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+header .logo {
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    height: 50px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.content {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+table thead {
+    background-color: #f1f1f1;
+}
+
+table th, table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: white;
+    display: inline-block;
+}
+
+.status.Shipped { background-color: #17a2b8; }
+.status.Processing { background-color: #007bff; }
+.status.Pending { background-color: #ffc107; color: #000; }
+
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pagination a {
+    color: #006442;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+select {
+    padding: 5px;
+    font-size: 0.95rem;
+    margin-left: 5px;
+}

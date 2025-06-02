@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Validation des rapatriements</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <img src="/static/bnp_logo.png" class="logo" alt="BNP">
+        <h1>Validation des serveurs à rapatrier</h1>
+    </header>
+
+    <div class="content">
+        <form method="get" action="/servers/validate">
+            <label for="per_page">Afficher</label>
+            <select name="per_page" id="per_page" onchange="this.form.submit()">
+                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+            <input type="hidden" name="page" value="{{ page }}">
+            entrées
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Hostname</th>
+                    <th>Site source</th>
+                    <th>Site cible</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in servers %}
+                <tr>
+                    <td>{{ s[0] }}</td>
+                    <td>{{ s[1] }}</td>
+                    <td>{{ s[2] }}</td>
+                    <td>{{ s[3] }}</td>
+                    <td>{{ s[4] }}</td>
+                    <td>
+                        <form method="post" action="/servers/validate/decision" style="display:inline;">
+                            <input type="hidden" name="server_id" value="{{ s[0] }}">
+                            <button type="submit" name="decision" value="accept">✅</button>
+                            <button type="submit" name="decision" value="reject">❌</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {% if page > 1 %}
+            <a href="/servers/validate?page={{ page - 1 }}&per_page={{ per_page }}">← Précédent</a>
+            {% endif %}
+            <span>Page {{ page }}</span>
+            {% if (page * per_page) < total %}
+            <a href="/servers/validate?page={{ page + 1 }}&per_page={{ per_page }}">Suivant →</a>
+            {% endif %}
+        </div>
+
+        <p><a href="/">← Retour à l'accueil</a></p>
+    </div>
+</body>
+</html>

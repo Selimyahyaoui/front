@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Liste des VLANs</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <img src="/static/bnp_logo.png" class="logo" alt="BNP">
+        <h1>VLANs disponibles</h1>
+    </header>
+
+    <div class="content">
+        <form method="get" action="/vlans">
+            <label for="per_page">Afficher</label>
+            <select name="per_page" id="per_page" onchange="this.form.submit()">
+                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+            <input type="hidden" name="page" value="{{ page }}">
+            entrées
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>VLAN ID</th>
+                    <th>Nom</th>
+                    <th>Subnet</th>
+                    <th>Location</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vlan in vlans %}
+                <tr>
+                    <td>{{ vlan[0] }}</td>
+                    <td>{{ vlan[1] }}</td>
+                    <td>{{ vlan[2] }}</td>
+                    <td>{{ vlan[3] }}</td>
+                    <td>{{ vlan[4] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="pagination">
+            {% if page > 1 %}
+            <a href="/vlans?page={{ page - 1 }}&per_page={{ per_page }}">← Précédent</a>
+            {% endif %}
+            <span>Page {{ page }}</span>
+            {% if (page * per_page) < total %}
+            <a href="/vlans?page={{ page + 1 }}&per_page={{ per_page }}">Suivant →</a>
+            {% endif %}
+        </div>
+
+        <p><a href="/">← Retour à l'accueil</a></p>
+    </div>
+</body>
+</html>
