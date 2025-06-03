@@ -24,26 +24,26 @@
             entrées
         </form>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>PO Number</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                <tr>
-                    <td>{{ order[0] }}</td>
-                    <td>{{ order[1] }}</td>
-                    <td><span class="status {{ order[2] }}">{{ order[2] }}</span></td>
-                    <td>{{ order[3] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>PO Number</th>
+      <th>Status</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+    <tr>
+      <td>{{ order[0] }}</td>
+      <td>{{ order[1] }}</td>
+      <td><span class="status status-{{ order[2]|lower|replace(' ', '-') }}">{{ order[2] }}</span></td>
+      <td>{{ order[3] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
         <div class="pagination">
             {% if page > 1 %}

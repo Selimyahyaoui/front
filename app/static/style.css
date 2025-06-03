@@ -89,3 +89,22 @@ th {
     color: #006341;
     font-weight: bold;
 }
+
+.status {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+  color: white;
+}
+
+.status-delivered {
+  background-color: #4CAF50; /* green */
+}
+
+.status-cancelled {
+  background-color: #f44336; /* red */
+}
+
+.status-pending {
+  background-color: #ff9800; /* orange */
+}
