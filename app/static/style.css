@@ -1,82 +1,91 @@
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f9fafb;
+    font-family: Arial, sans-serif;
     margin: 0;
-    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
 }
 
 header {
-    background-color: #006442;
+    background-color: #006341; /* BNP Paribas green */
     color: white;
-    padding: 20px;
+    padding: 15px 0;
     text-align: center;
-    position: relative;
 }
 
-header .logo {
-    position: absolute;
-    top: 10px;
-    left: 20px;
-    height: 50px;
+header img.logo {
+    float: left;
+    margin-left: 20px;
+    height: 40px;
 }
 
-h1 {
+header h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 24px;
 }
 
 .content {
-    max-width: 1000px;
-    margin: 40px auto;
-    padding: 0 20px;
-    background-color: #ffffff;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    padding: 20px;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 30px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+ul li {
+    margin: 10px 0;
+}
+
+ul li a {
+    text-decoration: none;
+    color: #006341;
+    font-size: 18px;
+    font-weight: bold;
+    display: block;
+    padding: 10px;
+    background-color: #e8f5e9;
+    border: 1px solid #006341;
+    border-radius: 5px;
+    transition: 0.3s;
+}
+
+ul li a:hover {
+    background-color: #c8e6c9;
+    color: #003d28;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 20px;
+    margin-top: 20px;
+    font-size: 14px;
+    background-color: white;
 }
 
-table thead {
-    background-color: #f1f1f1;
-}
-
-table th, table td {
-    padding: 12px 15px;
+th, td {
+    padding: 10px;
+    border: 1px solid #ccc;
     text-align: left;
-    border-bottom: 1px solid #ddd;
 }
 
-.status {
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 0.9rem;
+th {
+    background-color: #006341;
     color: white;
-    display: inline-block;
 }
-
-.status.Shipped { background-color: #17a2b8; }
-.status.Processing { background-color: #007bff; }
-.status.Pending { background-color: #ffc107; color: #000; }
 
 .pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    margin-top: 15px;
+    text-align: center;
 }
 
 .pagination a {
-    color: #006442;
+    margin: 0 10px;
     text-decoration: none;
+    color: #006341;
     font-weight: bold;
-}
-
-select {
-    padding: 5px;
-    font-size: 0.95rem;
-    margin-left: 5px;
 }
