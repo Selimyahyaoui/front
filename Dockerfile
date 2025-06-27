@@ -8,11 +8,10 @@ ENV https_proxy=$https_proxy
 
 RUN mkdir -p /etc && \
     echo "[global]" > /etc/pip.conf && \
-    echo "index-url = https://selim.yahyaoui@externe.bnpparibas.com:cmVmdGtUoJAxE3ODI1NzEwMTM6UDZI@artifactory.am.echonet/artifactory/api/pypi/bnpp-group-dogen-pipy/pypi/simple" >> /etc/pip.conf && \
+    echo "index-url = https://selim.yahyaoui%40externe.bnpparibas.com:cmVmdGtUoJAxE3ODI1NzEwMTM6UDZI@artifactory.am.echonet/artifactory/api/pypi/bnpp-group-dogen-pipy/pypi/simple" >> /etc/pip.conf && \
     echo "extra-index-url = https://pypi.org/simple" >> /etc/pip.conf && \
     echo "trusted-host = artifactory.am.echonet pypi.org" >> /etc/pip.conf
 
-# Debug : vérifier le pip.conf
 RUN cat /etc/pip.conf
 
 WORKDIR /app
