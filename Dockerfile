@@ -1,34 +1,32 @@
-FROM docker.artifactory-dogen.group.echonet/python:3.12
+# ✅ Use your custom Python image from Artifactory
+FROM artifactory.am.echonet/amic-docker-virtual/amic/base/amic-python:3.12
 
-# Arguments
+# ✅ Arguments for Artifactory authentication
 ARG ARTI_USER
 ARG ARTI_PASS
-ARG REPO_URL
 
-# Définir la variable d'hostname
-ENV ARTIFACTORY_HOSTNAME="repo.artifactory-dogen.group.echonet.net.intra"
+# ✅ Define Artifactory hostname
+ENV ARTIFACTORY_HOSTNAME="artifactory.am.echonet"
 
-# Configuration de pip.conf
+# ✅ Configure pip to use Artifactory PyPI virtual repo
 RUN echo "[global]" > /usr/local/pip.conf \
-    && echo "index-url = https://${ARTI_USER}:${ARTI_PASS}@${ARTIFACTORY_HOSTNAME}/artifactory/api/pypi/pypi/simple" >> /usr/local/pip.conf \
+    && echo "index-url = https://${ARTI_USER}:${ARTI_PASS}@${ARTIFACTORY_HOSTNAME}/artifactory/api/pypi/amic-python-virtual/simple" >> /usr/local/pip.conf \
     && echo "trusted-host = ${ARTIFACTORY_HOSTNAME}" >> /usr/local/pip.conf
 
-# Debug pip si besoin
-RUN pip3 config --user debug
-
-# Créer virtualenv (optionnel, si tu veux l’utiliser)
-RUN python3 -m venv .venv
-
-# Installer les requirements en global (avant virtualenv) 
-# ou adapte le chemin vers ton venv si tu souhaites l'utiliser
+# ✅ Copy requirements
 COPY requirements.txt /app/requirements.txt
+
+# ✅ Install Python dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copier le code source
-COPY ./ /app
+# ✅ Copy your application code
+COPY . /app
 
+# ✅ Set working directory
 WORKDIR /app
 
+# ✅ Expose application port
 EXPOSE 8010
 
+# ✅ Launch your app with gunicorn
 CMD ["gunicorn", "-b", ":8010", "app:app"]
