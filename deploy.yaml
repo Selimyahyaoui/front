@@ -17,6 +17,10 @@ spec:
         appcode: AP90567
         opscontact: djamel.kennouche_at_bnpparibas.com
     spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
         - name: bmaas-container
           image: private.fr2.icr.io/reg-l0021000650/bmaasimage2@sha256:e4a090bbd5c8
