@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmaas-deployment
+  namespace: ns002i011764
+  labels:
+    appcode: AP90567
+    opscontact: djamel.kennouche_at_bnpparibas.com
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      appcode: AP90567
+  template:
+    metadata:
+      labels:
+        appcode: AP90567
+        opscontact: djamel.kennouche_at_bnpparibas.com
+    spec:
+      containers:
+        - name: bmaas-container
+          image: private.fr2.icr.io/reg-l0021000650/bmaasimage2@sha256:e4a090bbd5c8
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: MyEnvName
+              value: ibmclouddb
+            - name: MyEnvHost
+              value: pg002i009346.svc-np.paas.echonet.net.intra
+            - name: MyEnvPassword
+              value: hV76T34PXDcnQ778bw
+            - name: MyEnvPort
+              value: "4299"
+            - name: MyEnvUser
+              value: supchain
