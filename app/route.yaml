@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: bmaas-route
+  namespace: ns002i011764
+spec:
+  to:
+    kind: Service
+    name: bmaas-service
+  port:
+    targetPort: 8010
+  tls:
+    termination: edge
+  wildcardPolicy: None
