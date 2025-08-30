@@ -9,7 +9,7 @@ from typing import List, Dict, Any
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-# ---------- verrou simple : un seul traitement à la fois ----------
+# ---------- single-upload lock (OK for 1 replica) ----------
 _in_progress = False
 _lock = asyncio.Lock()
 async def guard_start():
@@ -23,27 +23,48 @@ async def guard_end():
     async with _lock:
         _in_progress = False
 
-# ---------- SCHEMA STRICT ----------
+# ---------- strict schema ----------
 SCHEMA_BASE = [
     "SerialNumber","CFCode","region","CfnName","CustomerNumber","ProcessorType",
     "NumberSocket","NumberCore","Model","CustomerName","CustomerAddress",
     "PostCode","Country","OrderNumber","PONumber","BmcMacAddress",
     "Memory","HBA","BOSS","PERC","NVME","GPU"
 ]
-# au moins 1 colonne pour chacun de ces groupes
+# require at least one of each; allow these index ranges
 GROUP_BOUNDS = {"HDD": 12, "EMBMAC": 3, "NIC": 6}
 GROUP_RE = re.compile(r"^(hdd|embmac|nic)\s*_?\s*(\d+)$", re.IGNORECASE)
 
-# ---------- utils ----------
+# ---------- helpers ----------
+EMPTY_MARKERS = {"", "NA", "N/A", "NULL"}
+
 def _norm_header(col: str) -> str:
-    # strip espaces + BOM éventuel
+    # strip spaces + strip BOM if present
     return col.strip().lstrip("\ufeff")
+
+def _to_none(v: Any):
+    if v is None: return None
+    s = str(v).strip()
+    return None if s == "" or s.upper() in EMPTY_MARKERS else s
+
+def _is_blank_row(row: List[Any]) -> bool:
+    for v in row:
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s.upper() not in EMPTY_MARKERS and s != "":
+            return False
+    return True
+
+def _is_empty_asset(obj: Dict[str, Any]) -> bool:
+    base_all_none = all(obj.get(k) is None for k in SCHEMA_BASE)
+    groups_empty = all(not obj.get(g.lower()) for g in GROUP_BOUNDS.keys())
+    return base_all_none and groups_empty
 
 def read_csv(blob: bytes, encoding: str, delimiter: str):
     text = blob.decode(encoding, errors="replace")
     first_line = text.splitlines()[0] if text else ""
 
-    # choix délimiteur intelligent
+    # auto-detect delimiter if the first line clearly uses ; or \t
     chosen = delimiter
     if delimiter == ",":
         if first_line.count(";") > first_line.count(","):
@@ -97,40 +118,39 @@ def validate_headers_strict(header: List[str]) -> None:
     if unknown:
         raise HTTPException(status_code=422, detail=f"Colonnes non autorisées: {', '.join(unknown)}.")
 
-def to_none(v: any):
-    if v is None: return None
-    s = str(v).strip()
-    return None if s=="" or s.upper() in {"NA","N/A","NULL"} else s
-
-def transform_row(header: List[str], row: List[str]) -> Dict[str, Any]:
+def transform_row_to_grouped_maps(header: List[str], row: List[str]) -> Dict[str, Any]:
+    """
+    Output structure:
+    {
+      ...base fields...,
+      "hdd":    {"hdd1": "...", "hdd2": "...", ...},
+      "embmac": {"embmac1": "...", ...},
+      "nic":    {"nic1": "...", ...}
+    }
+    """
     out: Dict[str, Any] = {}
-    # calcul max index par groupe
-    max_idx = {g.lower(): 0 for g in GROUP_BOUNDS.keys()}
-    for col in header:
-        m = GROUP_RE.match(col.replace(" ", ""))
-        if m:
-            g = m.group(1).lower()
-            idx = int(m.group(2))
-            max_idx[g] = max(max_idx[g], idx)
-    arrays = {g: [None]*max_idx[g] for g in max_idx}
 
-    for i, col in enumerate(header):
-        val = to_none(row[i] if i < len(row) else None)
-        m = GROUP_RE.match(col.replace(" ", ""))
+    # build group dicts
+    grouped: Dict[str, Dict[str, Any]] = { "hdd": {}, "embmac": {}, "nic": {} }
+
+    for i, raw in enumerate(header):
+        col = raw.replace(" ", "")
+        val = _to_none(row[i] if i < len(row) else None)
+        m = GROUP_RE.match(col)
         if m:
-            g = m.group(1).lower()
+            g = m.group(1).lower()              # hdd / embmac / nic
             idx = int(m.group(2))
-            arrays[g][idx-1] = val
+            key = f"{g}{idx}"                   # e.g. "hdd3"
+            grouped[g][key] = val
         else:
-            out[col] = val
+            out[raw] = val  # keep original header casing for base fields
 
-    for g, arr in arrays.items():
-        while arr and arr[-1] is None:
-            arr.pop()
-        out[g] = arr
+    out["hdd"] = grouped["hdd"]
+    out["embmac"] = grouped["embmac"]
+    out["nic"] = grouped["nic"]
     return out
 
-# ===================== ENDPOINTS =====================
+# ===================== ROUTES =====================
 
 @router.get(path="/assets/upload", response_class=HTMLResponse)
 async def get_upload_page(request: Request):
@@ -140,12 +160,12 @@ async def get_upload_page(request: Request):
 async def upload_csv(
     request: Request,
     file: UploadFile = File(...),
-    delimiter: str = Form(","),        # par défaut ","
-    encoding: str = Form("utf-8"),     # par défaut utf-8
+    delimiter: str = Form(","),        # defaults; your form sends hidden fields
+    encoding: str = Form("utf-8"),
 ):
     if file.content_type not in ["text/csv", "application/vnd.ms-excel"]:
-        message = "✘ Le fichier doit être un CSV."
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": message}, status_code=400)
+        msg = "✘ Le fichier doit être un CSV."
+        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": msg}, status_code=400)
 
     try:
         await guard_start()
@@ -155,15 +175,18 @@ async def upload_csv(
     try:
         blob = await file.read()
         if len(blob) > 20 * 1024 * 1024:
-            message = "✘ Fichier trop volumineux (>20 Mo)."
-            return templates.TemplateResponse("upload_assets.html", {"request": request, "message": message}, status_code=413)
+            msg = "✘ Fichier trop volumineux (>20 Mo)."
+            return templates.TemplateResponse("upload_assets.html", {"request": request, "message": msg}, status_code=413)
 
         header, rows = read_csv(blob, encoding, delimiter)
         validate_headers_strict(header)
 
-        payload = [transform_row(header, r) for r in rows]
-        data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        # drop blank rows, transform, drop fully-empty assets
+        clean_rows = [r for r in rows if not _is_blank_row(r)]
+        objs = (transform_row_to_grouped_maps(header, r) for r in clean_rows)
+        payload = [o for o in objs if not _is_empty_asset(o)]
 
+        data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
         return StreamingResponse(
             io.BytesIO(data),
             media_type="application/json",
