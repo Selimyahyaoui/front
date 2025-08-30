@@ -5,61 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Importer des Assets (CSV Fournisseur)</title>
   <style>
-    body{font-family:system-ui;margin:0;background:#f7f7f9}
-    header{background:#18884f;color:#fff;padding:18px 22px}
-    main{max-width:920px;margin:24px auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:20px}
-    .rules{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;margin-bottom:16px;font-size:14px}
-    label{font-weight:600}
-    .field{margin:14px 0}
-    .actions{display:flex;gap:12px;align-items:center;margin-top:16px}
-    button{padding:10px 16px;border:0;border-radius:8px;background:#18884f;color:#fff;font-weight:700;cursor:pointer}
-    .err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:12px;margin-top:14px}
+    body {font-family: system-ui, sans-serif; margin:0; background:#f7f7f9;}
+    header {background:#18884f;color:#fff;padding:18px 22px;}
+    main {max-width:960px;margin:24px auto;background:#fff;
+          border:1px solid #e5e7eb;border-radius:10px;padding:20px;}
+    h1 {margin:0 0 14px 0;font-size:20px;}
+    .err {background:#fef2f2;border:1px solid #fecaca;color:#991b1b;
+          border-radius:8px;padding:12px;margin-bottom:14px;}
+    table {border-collapse: collapse;width:100%;margin-bottom:16px;font-size:14px;}
+    th, td {border:1px solid #d1d5db;padding:6px 10px;text-align:left;}
+    th {background:#f3f4f6;}
+    .groups td {background:#f9fafb;font-style:italic;}
+    .actions {margin-top:18px;}
+    button {padding:10px 16px;border:0;border-radius:8px;
+            background:#18884f;color:#fff;font-weight:700;cursor:pointer;}
+    a {color:#18884f;text-decoration:none;}
   </style>
 </head>
 <body>
   <header>
-    <div style="font-weight:700;">Importer des Assets (CSV Fournisseur)</div>
-    <div style="opacity:.9;font-size:13px;">Contrôle strict des en-têtes + regroupement HDD/EMBMAC/NIC → JSON</div>
+    <h1>Importer des Assets (CSV Fournisseur)</h1>
   </header>
 
   <main>
-    <div class="rules">
-      <b>Règles fichier</b><br>
-      - En-têtes obligatoires: <code>SerialNumber, CFCode, region, CfnName, CustomerNumber, ProcessorType, NumberSocket, NumberCore, Model, CustomerName, CustomerAddress, PostCode, Country, OrderNumber, PONumber, BmcMacAddress, Memory, HBA, BOSS, PERC, NVME, GPU</code><br>
-      - Groupes requis: au moins <code>HDD1</code>, <code>EMBMAC1</code>, <code>NIC1</code>. Plages acceptées: <code>HDD1..HDD12</code>, <code>EMBMAC1..EMBMAC3</code>, <code>NIC1..NIC6</code><br>
-      - Délimiteur: par défaut virgule. Taille max: 20 Mo.
-    </div>
-
-    {% if error %}
-    <div class="err">{{ error }}</div>
+    {% if message %}
+    <div class="err">{{ message }}</div>
     {% endif %}
 
+    <h2>Structure attendue du fichier CSV</h2>
+    <table>
+      <thead>
+        <tr><th>Colonnes obligatoires</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SerialNumber</td></tr>
+        <tr><td>CFCode</td></tr>
+        <tr><td>region</td></tr>
+        <tr><td>CfnName</td></tr>
+        <tr><td>CustomerNumber</td></tr>
+        <tr><td>ProcessorType</td></tr>
+        <tr><td>NumberSocket</td></tr>
+        <tr><td>NumberCore</td></tr>
+        <tr><td>Model</td></tr>
+        <tr><td>CustomerName</td></tr>
+        <tr><td>CustomerAddress</td></tr>
+        <tr><td>PostCode</td></tr>
+        <tr><td>Country</td></tr>
+        <tr><td>OrderNumber</td></tr>
+        <tr><td>PONumber</td></tr>
+        <tr><td>BmcMacAddress</td></tr>
+        <tr><td>Memory</td></tr>
+        <tr><td>HBA</td></tr>
+        <tr><td>BOSS</td></tr>
+        <tr><td>PERC</td></tr>
+        <tr><td>NVME</td></tr>
+        <tr><td>GPU</td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead>
+        <tr><th>Groupes obligatoires (au moins 1)</th><th>Plage acceptée</th></tr>
+      </thead>
+      <tbody class="groups">
+        <tr><td>HDD1 … HDD12</td><td>HDD1 à HDD12</td></tr>
+        <tr><td>EMBMAC1 … EMBMAC3</td><td>EMBMAC1 à EMBMAC3</td></tr>
+        <tr><td>NIC1 … NIC6</td><td>NIC1 à NIC6</td></tr>
+      </tbody>
+    </table>
+
+    <p><small>Format : CSV, taille max 20 Mo, séparateur virgule.</small></p>
+
     <form method="post" enctype="multipart/form-data">
-      <div class="field">
-        <label for="file">Fichier CSV</label><br>
+      <div>
+        <label for="file"><b>Choisir un fichier :</b></label><br>
         <input id="file" name="file" type="file" accept=".csv,text/csv" required>
       </div>
 
-      <div class="field">
-        <label for="delimiter">Délimiteur</label><br>
-        <select id="delimiter" name="delimiter">
-          <option value=",">Virgule (,)</option>
-          <option value=";">Point-virgule (;)</option>
-          <option value="tab">Tabulation</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="encoding">Encodage</label><br>
-        <select id="encoding" name="encoding">
-          <option value="utf-8">UTF-8</option>
-          <option value="latin-1">ISO-8859-1</option>
-        </select>
-      </div>
+      <!-- champs cachés pour éviter le 422 -->
+      <input type="hidden" name="delimiter" value=",">
+      <input type="hidden" name="encoding" value="utf-8">
 
       <div class="actions">
         <button type="submit">Importer & Télécharger le JSON</button>
-        <a href="/" style="text-decoration:none;color:#18884f">← Retour à l’accueil</a>
+        &nbsp;&nbsp;<a href="/">← Retour à l’accueil</a>
       </div>
     </form>
   </main>
