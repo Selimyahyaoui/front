@@ -4,12 +4,12 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from starlette.templating import Jinja2Templates
 
 import asyncio, io, csv, json, re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")  # <-- même que ton ancien code
+templates = Jinja2Templates(directory="app/templates")
 
-# ---------- verrou simple : un seul traitement à la fois (OK 1 replica) ----------
+# ---------- verrou simple : un seul traitement à la fois ----------
 _in_progress = False
 _lock = asyncio.Lock()
 async def guard_start():
@@ -30,21 +30,35 @@ SCHEMA_BASE = [
     "PostCode","Country","OrderNumber","PONumber","BmcMacAddress",
     "Memory","HBA","BOSS","PERC","NVME","GPU"
 ]
-# au moins 1 colonne pour chacun de ces groupes ; plages autorisées :
+# au moins 1 colonne pour chacun de ces groupes
 GROUP_BOUNDS = {"HDD": 12, "EMBMAC": 3, "NIC": 6}
 GROUP_RE = re.compile(r"^(hdd|embmac|nic)\s*_?\s*(\d+)$", re.IGNORECASE)
 
 # ---------- utils ----------
-def read_csv(blob: bytes, encoding: str, delimiter: str) -> Tuple[List[str], List[List[str]]]:
-    if delimiter == "tab":
-        delimiter = "\t"
+def _norm_header(col: str) -> str:
+    # strip espaces + BOM éventuel
+    return col.strip().lstrip("\ufeff")
+
+def read_csv(blob: bytes, encoding: str, delimiter: str):
     text = blob.decode(encoding, errors="replace")
+    first_line = text.splitlines()[0] if text else ""
+
+    # choix délimiteur intelligent
+    chosen = delimiter
+    if delimiter == ",":
+        if first_line.count(";") > first_line.count(","):
+            chosen = ";"
+        elif first_line.count("\t") > max(first_line.count(","), first_line.count(";")):
+            chosen = "\t"
+
     f = io.StringIO(text, newline="")
-    rows = list(csv.reader(f, delimiter=delimiter))
+    reader = csv.reader(f, delimiter=chosen)
+    rows = list(reader)
     if not rows:
         raise HTTPException(status_code=422, detail="CSV vide.")
-    header = [c.strip() for c in rows[0]]
-    return header, rows[1:]
+    header = [_norm_header(c) for c in rows[0]]
+    body = rows[1:]
+    return header, body
 
 def validate_headers_strict(header: List[str]) -> None:
     base_required = set(SCHEMA_BASE)
@@ -79,18 +93,18 @@ def validate_headers_strict(header: List[str]) -> None:
     if missing_base:
         raise HTTPException(status_code=422, detail=f"Colonnes obligatoires manquantes: {', '.join(missing_base)}.")
     if missing_groups:
-        raise HTTPException(status_code=422, detail=f"Il faut au moins une colonne pour chacun: {', '.join(missing_groups)} (ex: {', '.join(g+'1' for g in missing_groups)}).")
+        raise HTTPException(status_code=422, detail=f"Il faut au moins une colonne pour chacun: {', '.join(missing_groups)}.")
     if unknown:
         raise HTTPException(status_code=422, detail=f"Colonnes non autorisées: {', '.join(unknown)}.")
 
-def to_none(v: Any):
+def to_none(v: any):
     if v is None: return None
     s = str(v).strip()
     return None if s=="" or s.upper() in {"NA","N/A","NULL"} else s
 
 def transform_row(header: List[str], row: List[str]) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
-    # pré-size des tableaux jusqu’au plus grand index présent dans le header
+    # calcul max index par groupe
     max_idx = {g.lower(): 0 for g in GROUP_BOUNDS.keys()}
     for col in header:
         m = GROUP_RE.match(col.replace(" ", ""))
@@ -110,53 +124,46 @@ def transform_row(header: List[str], row: List[str]) -> Dict[str, Any]:
         else:
             out[col] = val
 
-    # trim trailing None
     for g, arr in arrays.items():
         while arr and arr[-1] is None:
             arr.pop()
         out[g] = arr
     return out
 
-# ===================== ENDPOINTS (même signature/UX que l’ancien) =====================
+# ===================== ENDPOINTS =====================
 
 @router.get(path="/assets/upload", response_class=HTMLResponse)
 async def get_upload_page(request: Request):
-    # mêmes clés que ton ancien template : "message"
-    return templates.TemplateResponse(name="upload_assets.html", context={"request": request})
+    return templates.TemplateResponse("upload_assets.html", {"request": request})
 
 @router.post(path="/assets/upload", response_class=HTMLResponse)
 async def upload_csv(
     request: Request,
     file: UploadFile = File(...),
-    delimiter: str = Form(","),        # mêmes champs optionnels si tu veux les ajouter au form
-    encoding: str = Form("utf-8"),
+    delimiter: str = Form(","),        # par défaut ","
+    encoding: str = Form("utf-8"),     # par défaut utf-8
 ):
-    # même contrôle de type que l’ancien (strict)
-    if file.content_type != "text/csv":
-        message = "✘ Le fichier doit être un fichier CSV."
-        return templates.TemplateResponse(name="upload_assets.html", context={"request": request, "message": message}, status_code=400)
+    if file.content_type not in ["text/csv", "application/vnd.ms-excel"]:
+        message = "✘ Le fichier doit être un CSV."
+        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": message}, status_code=400)
 
-    # verrou “un seul à la fois”
     try:
         await guard_start()
     except HTTPException as he:
-        return templates.TemplateResponse(name="upload_assets.html", context={"request": request, "message": he.detail}, status_code=409)
+        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": he.detail}, status_code=409)
 
     try:
         blob = await file.read()
         if len(blob) > 20 * 1024 * 1024:
-            message = "✘ Fichier trop volumineux (> 20 Mo)."
-            return templates.TemplateResponse(name="upload_assets.html", context={"request": request, "message": message}, status_code=413)
+            message = "✘ Fichier trop volumineux (>20 Mo)."
+            return templates.TemplateResponse("upload_assets.html", {"request": request, "message": message}, status_code=413)
 
         header, rows = read_csv(blob, encoding, delimiter)
-        # contrôle de saisie strict : toutes les colonnes de base + ≥1 HDD/EMBMAC/NIC ; aucune inconnue
         validate_headers_strict(header)
 
-        # transformation : regroupement hdd/embmac/nic
         payload = [transform_row(header, r) for r in rows]
         data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
 
-        # on renvoie directement le JSON en téléchargement (UX identique à avant: page → download)
         return StreamingResponse(
             io.BytesIO(data),
             media_type="application/json",
@@ -164,9 +171,8 @@ async def upload_csv(
         )
 
     except HTTPException as he:
-        # on ré-affiche la page avec le message d’erreur (comme ton ancien code)
-        return templates.TemplateResponse(name="upload_assets.html", context={"request": request, "message": he.detail}, status_code=he.status_code)
+        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": he.detail}, status_code=he.status_code)
     except Exception as e:
-        return templates.TemplateResponse(name="upload_assets.html", context={"request": request, "message": f"Erreur: {e}"}, status_code=500)
+        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": f"Erreur: {e}"}, status_code=500)
     finally:
         await guard_end()
