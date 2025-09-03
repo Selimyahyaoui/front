@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Request, UploadFile, File, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 from pathlib import Path
-import uuid, shutil
+import os, shutil, uuid
 
 from app.services.assets import transform_csv_to_json
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-UPLOAD_DIR = Path("app/static/uploads")
+# Write temp CSVs under /tmp as well (no Docker changes needed)
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/tmp/assets/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.get("/assets/upload", response_class=HTMLResponse)
@@ -20,8 +21,7 @@ async def get_upload(request: Request):
 async def post_upload(request: Request, file: UploadFile = File(...)):
     if file.content_type not in ["text/csv", "application/vnd.ms-excel"]:
         return templates.TemplateResponse("upload_assets.html", {
-            "request": request,
-            "message": "✘ Le fichier doit être un CSV."
+            "request": request, "message": "✘ Le fichier doit être un CSV."
         }, status_code=400)
 
     tmp_name = f"upload_{uuid.uuid4().hex}.csv"
@@ -32,6 +32,10 @@ async def post_upload(request: Request, file: UploadFile = File(...)):
     try:
         json_path = transform_csv_to_json(str(tmp_path))
         msg = f"✔ Fichier traité et stocké sous : {json_path}"
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": msg})
+        return templates.TemplateResponse("upload_assets.html", {
+            "request": request, "message": msg
+        })
     except Exception as e:
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": f"Erreur: {e}"}, status_code=500)
+        return templates.TemplateResponse("upload_assets.html", {
+            "request": request, "message": f"Erreur: {e}"
+        }, status_code=500)
