@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import home, orders, servers, validate_servers, assets, upload_assets, add_order, sites, ips, catalog, vlans
-
+from app.routers import home, orders, servers, validate_servers, assets, upload_assets, add_order, sites, ips, catalog, vlans, assets_json
 app = FastAPI()
 
 app.include_router(home.router)
@@ -16,6 +15,7 @@ app.include_router(sites.router)
 app.include_router(ips.router)
 app.include_router(catalog.router)
 app.include_router(vlans.router)
+app.include_router(assets_json.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
