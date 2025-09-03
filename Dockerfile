@@ -25,6 +25,10 @@ COPY . /app
 # ✅ Set working directory
 WORKDIR /app
 
+# dossier pour CSV/JSON (même sans PVC)
+RUN useradd -m appuser && mkdir -p /app/app/static/uploads /app/app/static/json && chown -R appuser:appuser /app
+USER appuser
+
 # ✅ Expose application port
 EXPOSE 8010
 
