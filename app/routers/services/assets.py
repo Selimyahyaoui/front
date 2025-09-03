@@ -1,7 +1,9 @@
-import csv, json, os
+import os, csv, json
 from typing import List, Dict, Any
+from pathlib import Path
 
-JSON_OUTPUT_PATH = "app/static/json/assets_transformed.json"
+# Store the final JSON in /tmp by default (OCP-friendly, no root)
+JSON_OUTPUT_PATH = os.getenv("JSON_OUTPUT_PATH", "/tmp/assets/json/assets_transformed.json")
 
 SCHEMA_BASE = [
     "SerialNumber","CFCode","region","CfnName","CustomerNumber","ProcessorType",
@@ -30,7 +32,8 @@ def _is_blank_row(row: Dict[str, Any]) -> bool:
             return False
     return True
 
-def _smart_delimiter_and_reader(fh) -> csv.DictReader:
+def _smart_reader(fh) -> csv.DictReader:
+    # detect delimiter from the first line; handle comma/semicolon/tab
     pos = fh.tell()
     first = fh.readline()
     fh.seek(pos)
@@ -42,15 +45,20 @@ def _smart_delimiter_and_reader(fh) -> csv.DictReader:
     return csv.DictReader(fh, delimiter=delim)
 
 def _validate_headers(header: List[str]):
+    header = [h.strip() for h in header]
     header_set = set(header)
+
+    # must have all base columns
     missing = [c for c in SCHEMA_BASE if c not in header_set]
     if missing:
         raise ValueError(f"Colonnes obligatoires manquantes: {', '.join(missing)}")
-    # At least one of each group
+
+    # must have at least one of each group
     for gname, rng in GROUP_RANGES.items():
-        if not any((f"{gname}{i}" in header_set) for i in rng):
+        if not any(f"{gname}{i}" in header_set for i in rng):
             raise ValueError(f"Au moins une colonne requise pour {gname} (ex: {gname}1)")
-    # No unknown columns except allowed group names
+
+    # forbid unknown columns (only base + groups are allowed)
     allowed = set(SCHEMA_BASE)
     for g, rng in GROUP_RANGES.items():
         for i in rng:
@@ -61,43 +69,37 @@ def _validate_headers(header: List[str]):
 
 def transform_csv_to_json(csv_path: str) -> str:
     """
-    Lit un CSV 'fournisseur' et écrit le JSON final dans JSON_OUTPUT_PATH.
-    - Groupes:
-        hdd:     { "hdd1": "...", ... }
-        network: { "embmac1": "...", "nic1": "...", ... }
+    Read vendor CSV and write compact JSON to JSON_OUTPUT_PATH.
+    - HDD grouped under 'hdd': { "hdd1": "...", ... }
+    - NIC+EMBMAC grouped under 'network': { "nic1": "...", "embmac1": "...", ... }
     """
     rows_out: List[Dict[str, Any]] = []
 
-    # utf-8-sig pour ignorer un éventuel BOM Excel
+    # utf-8-sig eats possible BOM from Excel
     with open(csv_path, "r", encoding="utf-8-sig", newline="") as fh:
-        reader = _smart_delimiter_and_reader(fh)
+        reader = _smart_reader(fh)
         header = reader.fieldnames or []
-        # normalisation simple (strip + BOM déjà géré par utf-8-sig)
-        header = [h.strip() for h in header]
         _validate_headers(header)
 
         for row in reader:
-            # Clean values
             row = {k: _to_none(v) for k, v in row.items()}
             if _is_blank_row(row):
                 continue
 
-            obj: Dict[str, Any] = {}
-            obj["hdd"] = {}
-            obj["network"] = {}
+            obj: Dict[str, Any] = {"hdd": {}, "network": {}}
 
-            # Base fields
+            # base fields as-is
             for key in SCHEMA_BASE:
                 obj[key] = row.get(key)
 
-            # HDD group
+            # HDD -> "hdd"
             for i in GROUP_RANGES["HDD"]:
                 col = f"HDD{i}"
                 val = row.get(col)
                 if val is not None:
                     obj["hdd"][f"hdd{i}"] = val
 
-            # NIC + EMBMAC → network
+            # NIC + EMBMAC -> "network"
             for i in GROUP_RANGES["NIC"]:
                 col = f"NIC{i}"
                 val = row.get(col)
@@ -109,16 +111,11 @@ def transform_csv_to_json(csv_path: str) -> str:
                 if val is not None:
                     obj["network"][f"embmac{i}"] = val
 
-            # optional: drop empty maps to keep JSON compact
-            if not obj["hdd"]:
-                obj["hdd"] = {}
-            if not obj["network"]:
-                obj["network"] = {}
-
             rows_out.append(obj)
 
-    os.makedirs(os.path.dirname(JSON_OUTPUT_PATH), exist_ok=True)
-    with open(JSON_OUTPUT_PATH, "w", encoding="utf-8") as out:
-        json.dump(rows_out, out, ensure_ascii=False, indent=2)
+    out_path = Path(JSON_OUTPUT_PATH)
+    out_path.parent.mkdir(parents=True, exist_ok=True)  # /tmp is writable
+    with out_path.open("w", encoding="utf-8") as f:
+        json.dump(rows_out, f, ensure_ascii=False, indent=2)
 
-    return JSON_OUTPUT_PATH
+    return str(out_path)
