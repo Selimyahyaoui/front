@@ -36,36 +36,4 @@
       <tr><td>CfnName</td></tr><tr><td>CustomerNumber</td></tr><tr><td>ProcessorType</td></tr>
       <tr><td>NumberSocket</td></tr><tr><td>NumberCore</td></tr><tr><td>Model</td></tr>
       <tr><td>CustomerName</td></tr><tr><td>CustomerAddress</td></tr><tr><td>PostCode</td></tr>
-      <tr><td>Country</td></tr><tr><td>OrderNumber</td></tr><tr><td>PONumber</td></tr>
-      <tr><td>BmcMacAddress</td></tr><tr><td>Memory</td></tr><tr><td>HBA</td></tr>
-      <tr><td>BOSS</td></tr><tr><td>PERC</td></tr><tr><td>NVME</td></tr><tr><td>GPU</td></tr>
-    </tbody>
-  </table>
-
-  <table>
-    <thead><tr><th>Groupes requis (≥1)</th><th>Plage autorisée</th></tr></thead>
-    <tbody>
-      <tr><td>HDD1…HDD12</td><td>HDD1 à HDD12</td></tr>
-      <tr><td>EMBMAC1…EMBMAC3</td><td>EMBMAC1 à EMBMAC3</td></tr>
-      <tr><td>NIC1…NIC6</td><td>NIC1 à NIC6</td></tr>
-    </tbody>
-  </table>
-
-  <p><small>Format: CSV (UTF-8), taille max ~20 Mo, séparateur auto (`,` `;` ou tab).</small></p>
-
-  <form method="post" enctype="multipart/form-data">
-    <p><b>Choisir un fichier :</b></p>
-    <input type="file" name="file" accept=".csv,text/csv" required>
-
-    <!-- champs cachés (si un jour tu les utilises côté serveur) -->
-    <input type="hidden" name="delimiter" value=",">
-    <input type="hidden" name="encoding" value="utf-8">
-
-    <p style="margin-top:12px;">
-      <button type="submit">Importer</button>
-      &nbsp; <a href="/assets/json" target="_blank">Voir le JSON (GET)</a>
-    </p>
-  </form>
-</main>
-</body>
-</html>
+      <tr><td>Country</td></tr><tr><td>OrderNumber</td></tr><tr><td>PONumber</td></tr
