@@ -4,7 +4,8 @@ import os
 
 router = APIRouter()
 
-JSON_PATH = "app/static/json/assets_transformed.json"
+# Read the same path used by the service (default /tmp…)
+JSON_PATH = os.getenv("JSON_OUTPUT_PATH", "/tmp/assets/json/assets_transformed.json")
 
 @router.get("/assets/json")
 async def get_json():
