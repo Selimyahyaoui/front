@@ -11,14 +11,9 @@ templates = Jinja2Templates(directory="app/templates")
 
 POWER_WATTS = [150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 750, 800, 850, 900, 950]
 
-
 # -------------------- Safe DB helpers --------------------
 
 def _safe_fetchall(sql: str, params: Optional[tuple] = None) -> List[tuple]:
-    """
-    Execute a SELECT and return rows. Ensures rollback on error so we don't
-    leave the connection in an aborted transaction state.
-    """
     with get_connection() as conn:
         conn.autocommit = False
         try:
@@ -30,7 +25,6 @@ def _safe_fetchall(sql: str, params: Optional[tuple] = None) -> List[tuple]:
         except Exception:
             conn.rollback()
             raise
-
 
 def _safe_fetchone(sql: str, params: Optional[tuple] = None) -> Optional[tuple]:
     with get_connection() as conn:
@@ -45,11 +39,7 @@ def _safe_fetchone(sql: str, params: Optional[tuple] = None) -> Optional[tuple]:
             conn.rollback()
             raise
 
-
 def _safe_insert_returning(sql: str, params: tuple) -> Any:
-    """
-    Execute an INSERT ... RETURNING and return the first column of the RETURNING row.
-    """
     with get_connection() as conn:
         conn.autocommit = False
         try:
@@ -62,13 +52,31 @@ def _safe_insert_returning(sql: str, params: tuple) -> Any:
             conn.rollback()
             raise
 
+# -------------------- Schema helpers --------------------
+
+def _detect_site_column() -> str:
+    """
+    Find the site FK column in supchain.t_server_sts.
+    Works across variants like: t_site_id, t_server_sts_t_site_id, t_server_sts_site_id.
+    """
+    candidates = ["t_site_id", "t_server_sts_t_site_id", "t_server_sts_site_id"]
+    rows = _safe_fetchall("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'supchain' AND table_name = 't_server_sts'
+    """)
+    existing = {r[0] for r in rows}
+    for c in candidates:
+        if c in existing:
+            return c
+    raise RuntimeError(
+        "Aucune colonne site détectée dans supchain.t_server_sts. "
+        f"Colonnes présentes: {sorted(existing)}"
+    )
 
 # -------------------- Choices / Lookups --------------------
 
 def fetch_sites() -> List[Dict[str, Any]]:
-    """
-    Sources sites directly from supchain.t_site (lowercase columns as in your schema).
-    """
     rows = _safe_fetchall("""
         SELECT
           t_site_id       AS id,
@@ -82,11 +90,7 @@ def fetch_sites() -> List[Dict[str, Any]]:
         for r in rows
     ]
 
-
 def fetch_physical_zones() -> List[str]:
-    """
-    Use distinct values already present in t_server_sts (robust).
-    """
     rows = _safe_fetchall("""
         SELECT DISTINCT t_server_sts_physical_zone_target
         FROM supchain.t_server_sts
@@ -95,11 +99,7 @@ def fetch_physical_zones() -> List[str]:
     """)
     return [r[0] for r in rows]
 
-
 def fetch_ap_codes() -> List[str]:
-    """
-    Use distinct values from t_server_sts (no dependency on a catalog table).
-    """
     rows = _safe_fetchall("""
         SELECT DISTINCT t_server_sts_t_ap_code_authorized_ap_code
         FROM supchain.t_server_sts
@@ -108,25 +108,20 @@ def fetch_ap_codes() -> List[str]:
     """)
     return [r[0] for r in rows]
 
-
 # -------------------- Routes --------------------
 
 @router.get("/orders/add", response_class=HTMLResponse)
 async def show_add_order(request: Request):
-    sites = fetch_sites()
-    physical_zones = fetch_physical_zones()
-    ap_codes = fetch_ap_codes()
     return templates.TemplateResponse(
         "add_order.html",
         {
             "request": request,
-            "sites": sites,
-            "physical_zones": physical_zones,
-            "ap_codes": ap_codes,
+            "sites": fetch_sites(),
+            "physical_zones": fetch_physical_zones(),
+            "ap_codes": fetch_ap_codes(),
             "power_watts": POWER_WATTS,
         },
     )
-
 
 @router.get("/orders/site-info")
 async def get_site_info(site_id: int):
@@ -140,22 +135,21 @@ async def get_site_info(site_id: int):
     location, country = row
     return {"location": location, "country": country}
 
-
 @router.post("/orders/add", response_class=HTMLResponse)
 async def submit_add_order(
     request: Request,
     po_number: str = Form(...),
-    status: str = Form(...),                      # -> t_server_sts_state_string
-    cfi_code: Optional[str] = Form(None),         # -> t_server_sts_cfi_code
-    site_id: int = Form(...),                     # -> t_site_id
-    country: Optional[str] = Form(None),          # -> t_server_sts_country
-    ap_code: Optional[str] = Form(None),          # -> t_server_sts_t_ap_code_authorized_ap_code
-    nic_interface_number: Optional[int] = Form(None),  # -> t_server_sts_nic_count
-    physical_zone: Optional[str] = Form(None),    # -> t_server_sts_physical_zone_target
-    power_watt: Optional[int] = Form(None),       # -> t_server_sts_power_watt
-    san: Optional[str] = Form(None),              # -> t_server_sts_san
-    heartbeat: Optional[str] = Form(None),        # -> t_server_sts_heartbeat
-    soki_name: Optional[str] = Form(None),        # -> t_server_sts_soki
+    status: str = Form(...),                           # t_server_sts_state_string
+    cfi_code: Optional[str] = Form(None),              # t_server_sts_cfi_code
+    site_id: int = Form(...),                          # FK -> t_site
+    country: Optional[str] = Form(None),               # t_server_sts_country
+    ap_code: Optional[str] = Form(None),               # t_server_sts_t_ap_code_authorized_ap_code
+    nic_interface_number: Optional[int] = Form(None),  # t_server_sts_nic_count
+    physical_zone: Optional[str] = Form(None),         # t_server_sts_physical_zone_target
+    power_watt: Optional[int] = Form(None),            # t_server_sts_power_watt
+    san: Optional[str] = Form(None),                   # t_server_sts_san
+    heartbeat: Optional[str] = Form(None),             # t_server_sts_heartbeat
+    soki_name: Optional[str] = Form(None),             # t_server_sts_soki
 ):
     order_json = {
         "poNumber": po_number,
@@ -172,14 +166,15 @@ async def submit_add_order(
     }
 
     try:
-        new_id = _safe_insert_returning(
-            """
+        site_col = _detect_site_column()
+
+        insert_sql = f"""
             INSERT INTO supchain.t_server_sts
             (
               t_server_sts_po_number,
               t_server_sts_state_string,
               t_server_sts_cfi_code,
-              t_site_id,
+              {site_col},
               t_server_sts_country,
               t_server_sts_t_ap_code_authorized_ap_code,
               t_server_sts_nic_count,
@@ -191,12 +186,15 @@ async def submit_add_order(
             )
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING t_server_sts_id
-            """,
+        """
+
+        new_id = _safe_insert_returning(
+            insert_sql,
             (
                 po_number,
                 status,
                 cfi_code,
-                site_id,
+                site_id,  # inserted into the detected site column
                 country,
                 ap_code,
                 nic_interface_number,
@@ -209,22 +207,18 @@ async def submit_add_order(
         )
         message_ok = f"Commande enregistrée (ID={new_id})."
         message_error = None
+
     except Exception as e:
         message_ok = None
         message_error = f"Erreur d'insertion: {e}"
-
-    # Reload choices for the render (keeps page usable after submit)
-    sites = fetch_sites()
-    physical_zones = fetch_physical_zones()
-    ap_codes = fetch_ap_codes()
 
     return templates.TemplateResponse(
         "add_order.html",
         {
             "request": request,
-            "sites": sites,
-            "physical_zones": physical_zones,
-            "ap_codes": ap_codes,
+            "sites": fetch_sites(),
+            "physical_zones": fetch_physical_zones(),
+            "ap_codes": fetch_ap_codes(),
             "power_watts": POWER_WATTS,
             "message_ok": message_ok,
             "message_error": message_error,
