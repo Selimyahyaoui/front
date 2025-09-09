@@ -4,189 +4,198 @@
   <meta charset="UTF-8" />
   <title>Serveurs en stock (warehouse)</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    .page-wrap { max-width: 1180px; margin: 24px auto; }
-    .toolbar { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px; }
-    .toolbar-left { display:flex; gap:14px; align-items:center; }
-    .btn-primary { background:#28a745; border-color:#28a745; }
-    .card { background:#fff; border:1px solid #e5e5e5; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .card-body { padding:14px; }
-    table { width:100%; border-collapse:separate; border-spacing:0; }
-    thead th { background:#f7f7f9; font-weight:600; font-size:13px; padding:10px; border-bottom:1px solid #e7e7ea; white-space:nowrap; }
-    tbody td { padding:8px; border-bottom:1px solid #f0f0f3; vertical-align:middle; }
-    .row-check { width:22px; text-align:center; }
-    .form-control, .form-select { width:100%; font-size:13px; height:32px; }
-    .w-po     { min-width: 120px; }
-    .w-vendor { min-width: 85px; }
-    .w-model  { min-width: 85px; }
-    .w-cfi    { min-width: 80px; }
-    .w-serial { min-width: 130px; }
-    .w-country{ min-width: 80px; }
-    .w-nic    { min-width: 95px; }
-    .w-apcode { min-width: 110px; }
-    .w-pz     { min-width: 120px; }
-    .w-watt   { min-width: 95px; }
-    .w-heart  { min-width: 95px; }
-    .w-soki   { min-width: 120px; }
-    .w-san    { min-width: 90px; }
-    .hint { font-size:12px; color:#6b7280; }
-    .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:10px 12px; border-radius:6px; opacity:0; pointer-events:none; transition:opacity .2s; }
-    .toast.show { opacity:1; }
+    :root{
+      --brand:#14823b; --brand-ink:#0f5f2c; --ink:#1f2937; --muted:#6b7280;
+      --bg:#f7f7f9; --card:#fff; --border:#e5e7eb;
+      --success-bg:#e7f6ea; --success-ink:#116d37; --danger-bg:#fdeaea; --danger-ink:#8a1d1d;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+
+    .hero{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{font-size:18px;margin:0}
+    .hero .pill{margin-left:auto;font-size:12px;color:var(--muted)}
+
+    .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .toolbar .spacer{flex:1}
+    .btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
+    .hint{color:var(--muted);font-size:12px}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .tbl{width:100%;border-collapse:separate;border-spacing:0}
+    .tbl thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted);padding:10px 10px;z-index:1;white-space:nowrap}
+    .tbl td{border-bottom:1px solid var(--border);padding:10px;vertical-align:middle}
+    .tbl tbody tr:nth-child(odd){background:#fcfcfe}
+    .tbl tbody tr:hover{background:#f5f7ff}
+    .tbl .col-check{width:42px;text-align:center}
+
+    /* field widths so values aren’t cut */
+    .w-po{min-width:140px} .w-vendor{min-width:95px} .w-model{min-width:95px}
+    .w-cfi{min-width:110px} .w-serial{min-width:150px} .w-country{min-width:90px}
+    .w-nic{min-width:110px} .w-ap{min-width:130px} .w-pz{min-width:140px}
+    .w-watt{min-width:110px} .w-heart{min-width:110px} .w-soki{min-width:140px} .w-san{min-width:110px}
+
+    .tbl input,.tbl select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;font:inherit;height:32px}
+    .tbl input[readonly]{background:#f7f7f9;color:#555}
+
+    .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
+    .alert.success{background:var(--success-bg);color:var(--success-ink);border-color:#ccebd6}
+    .alert.error{background:var(--danger-bg);color:var(--danger-ink);border-color:#f5c2c2}
   </style>
-</head>
-<body>
-  <div class="page-wrap">
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <h2 style="margin:0">Serveurs en stock (warehouse)</h2>
-        <span class="hint">Sélectionnez, modifiez puis générez le JSON</span>
-      </div>
-      <div>
-        <button id="btn-generate" class="btn btn-primary" disabled>Générer le JSON des serveurs cochés</button>
-        <a class="btn" href="/">Accueil</a>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-body">
-        <form id="srv-form" method="post" action="/servers/warehouse">
-          <input type="hidden" name="selected_ids" id="selected_ids" value="" />
-
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th class="row-check"></th>
-                  <th class="w-po">PO Number</th>
-                  <th class="w-vendor">Vendor</th>
-                  <th class="w-model">Model</th>
-                  <th class="w-cfi">CFI Code</th>
-                  <th class="w-serial">Serial</th>
-                  <th class="w-country">Country</th>
-                  <th class="w-nic">NIC Interface Number</th>
-                  <th class="w-apcode">AP code authorized</th>
-                  <th class="w-pz">Physical Zone</th>
-                  <th class="w-watt">Power Watt</th>
-                  <th class="w-heart">HeartBeat</th>
-                  <th class="w-soki">Soki Name</th>
-                  <th class="w-san">SAN</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for s in servers %}
-                <tr data-id="{{ s.id }}">
-                  <td class="row-check">
-                    <input type="checkbox" class="row-select" />
-                  </td>
-
-                  <td class="w-po">
-                    <input class="form-control" value="{{ s.po_number or '' }}" readonly />
-                  </td>
-                  <td class="w-vendor">
-                    <input class="form-control" value="{{ s.vendor or '' }}" readonly />
-                  </td>
-                  <td class="w-model">
-                    <input class="form-control" value="{{ s.model or '' }}" readonly />
-                  </td>
-                  <td class="w-cfi">
-                    <input class="form-control" value="{{ s.cfi_code or '' }}" readonly />
-                  </td>
-                  <td class="w-serial">
-                    <input class="form-control" value="{{ s.serial or '' }}" readonly />
-                  </td>
-                  <td class="w-country">
-                    <input class="form-control" value="{{ s.country or '' }}" readonly />
-                  </td>
-                  <td class="w-nic">
-                    <input class="form-control" type="number" min="0" name="nic_{{ s.id }}" value="{{ s.nic_count or '' }}" />
-                  </td>
-
-                  <td class="w-apcode">
-                    <select class="form-select" name="apcode_{{ s.id }}">
-                      <option value="">—</option>
-                      {% for ap in ap_codes %}
-                        <option value="{{ ap }}" {% if s.ap_code_authorized==ap %}selected{% endif %}>{{ ap }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
-
-                  <td class="w-pz">
-                    <select class="form-select" name="pz_{{ s.id }}">
-                      <option value="">—</option>
-                      {% for pz in physical_zones %}
-                        <option value="{{ pz }}" {% if s.physical_zone==pz %}selected{% endif %}>{{ pz }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
-
-                  <td class="w-watt">
-                    <select class="form-select" name="watt_{{ s.id }}">
-                      <option value="">—</option>
-                      {% for w in power_watts %}
-                        <option value="{{ w }}" {% if s.power_watt==w %}selected{% endif %}>{{ w }}</option>
-                      {% endfor %}
-                    </select>
-                  </td>
-
-                  <td class="w-heart">
-                    <input class="form-control" name="hb_{{ s.id }}" value="{{ s.heartbeat or '' }}" />
-                  </td>
-                  <td class="w-soki">
-                    <input class="form-control" name="soki_{{ s.id }}" value="{{ s.soki_name or '' }}" />
-                  </td>
-                  <td class="w-san">
-                    <input class="form-control" name="san_{{ s.id }}" value="{{ s.san or '' }}" />
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <div id="toast" class="toast">Aucune ligne sélectionnée.</div>
 
   <script>
-    const form = document.getElementById('srv-form');
-    const btn  = document.getElementById('btn-generate');
-    const toast = document.getElementById('toast');
-
-    function showToast(msg) {
-      toast.textContent = msg || 'Aucune ligne sélectionnée.';
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
+    // toggle all via toolbar checkbox
+    function toggleAll(master){
+      document.querySelectorAll(".row-check").forEach(cb => cb.checked = master.checked);
+      updateGenerateState();
     }
+    function toNumberOrNull(v){
+      if(v === null || v === undefined) return null;
+      const t = String(v).trim();
+      if(t === "") return null;
+      const n = Number(t);
+      return Number.isFinite(n) ? n : null;
+    }
+    function updateGenerateState(){
+      const any = Array.from(document.querySelectorAll(".row-check")).some(cb => cb.checked);
+      document.getElementById("btn-generate").disabled = !any;
+    }
+    function collectAndSubmit(){
+      const rows = [];
+      document.querySelectorAll("tr.data-row").forEach(tr=>{
+        const checked = tr.querySelector(".row-check").checked;
+        if(!checked) return;
 
-    function computeSelection() {
-      const rows = [...document.querySelectorAll('tbody tr')];
-      const selected = [];
-      rows.forEach(tr => {
-        const cb = tr.querySelector('.row-select');
-        if (cb && cb.checked) selected.push(tr.dataset.id);
+        const pick = sel => (tr.querySelector(sel)?.value ?? "").trim();
+
+        rows.push({
+          id: Number(tr.dataset.id),
+          po_number: pick("input[name='po_number']") || null,
+          vendor:    pick("input[name='vendor']")    || null,
+          model:     pick("input[name='model']")     || null,
+          cfi_code:  pick("input[name='cfi_code']")  || null,
+          serial:    pick("input[name='serial']")    || null,
+          country:   pick("input[name='country']")   || null,
+          nic_count: toNumberOrNull(pick(\"input[name='nic_count']\")),
+          ap_code_authorized: pick(\"select[name='ap_code_authorized']\") || null,
+          physical_zone:      pick(\"select[name='physical_zone']\")      || null,
+          power_watt:         toNumberOrNull(pick(\"select[name='power_watt']\")),
+          heartbeat: pick(\"input[name='heartbeat']\") || null,
+          soki_name: pick(\"input[name='soki_name']\") || null,
+          san:       pick(\"input[name='san']\")       || null
+        });
       });
-      document.getElementById('selected_ids').value = selected.join(',');
-      btn.disabled = selected.length === 0;
-      return selected;
+
+      const payload = { generated_at: new Date().toISOString(), servers: rows };
+      document.getElementById("json_payload").value = JSON.stringify(payload);
+      return true; // submit
     }
 
-    // Enable/disable button as user checks rows
-    document.addEventListener('change', e => {
-      if (e.target.classList.contains('row-select')) computeSelection();
+    document.addEventListener("change", e=>{
+      if(e.target.classList.contains("row-check")) updateGenerateState();
     });
-
-    // Submit to generate JSON
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const ids = computeSelection();
-      if (!ids.length) { showToast(); return; }
-      form.submit();
-    });
-
-    // Initial state
-    computeSelection();
+    document.addEventListener("DOMContentLoaded", updateGenerateState);
   </script>
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP" />
+      <h1>Serveurs en stock (warehouse)</h1>
+      <div class="pill">Sélectionnez, modifiez puis générez le JSON</div>
+    </div>
+
+    {% if message_ok %}<div class="alert success">{{ message_ok }}</div>{% endif %}
+    {% if message_error %}<div class="alert error">{{ message_error }}</div>{% endif %}
+
+    <form method="post" action="/servers/warehouse" onsubmit="return collectAndSubmit()">
+      <input type="hidden" id="json_payload" name="json_payload" value="" />
+
+      <div class="toolbar">
+        <label class="hint"><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
+        <div class="spacer"></div>
+        <button type="submit" id="btn-generate" class="btn" disabled>Générer le JSON des serveurs cochés</button>
+        <a class="btn btn--ghost" href="/">Accueil</a>
+      </div>
+
+      <div class="card">
+        <div style="overflow:auto; max-height:70vh">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th class="col-check"></th>
+                <th class="w-po">PO Number</th>
+                <th class="w-vendor">Vendor</th>
+                <th class="w-model">Model</th>
+                <th class="w-cfi">CFI Code</th>
+                <th class="w-serial">Serial</th>
+                <th class="w-country">Country</th>
+                <th class="w-nic">NIC Interface Number</th>
+                <th class="w-ap">AP code authorized</th>
+                <th class="w-pz">Physical Zone</th>
+                <th class="w-watt">Power Watt</th>
+                <th class="w-heart">HeartBeat</th>
+                <th class="w-soki">Soki Name</th>
+                <th class="w-san">SAN</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in servers %}
+              <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
+                <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
+
+                <td class="w-po"><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
+                <td class="w-vendor"><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
+                <td class="w-model"><input name="model" value="{{ s.t_server_sts_model or '' }}" readonly></td>
+
+                <td class="w-cfi"><input name="cfi_code" value="{{ s.t_server_sts_cfi_code or '' }}"></td>
+                <td class="w-serial"><input name="serial" value="{{ s.t_server_sts_serial or '' }}" readonly></td>
+                <td class="w-country"><input name="country" value="{{ s.t_server_sts_country or '' }}" readonly></td>
+
+                <td class="w-nic"><input name="nic_count" type="number" min="0" value="{{ s.t_server_sts_nic_count or '' }}"></td>
+
+                <td class="w-ap">
+                  <select name="ap_code_authorized">
+                    <option value=""></option>
+                    {% for ap in ap_codes %}
+                      <option value="{{ ap }}" {% if s.t_server_sts_t_ap_code_authorized_ap_code == ap %}selected{% endif %}>{{ ap }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+
+                <td class="w-pz">
+                  <select name="physical_zone">
+                    <option value=""></option>
+                    {% for z in physical_zones %}
+                      <option value="{{ z }}" {% if s.physical_zone == z %}selected{% endif %}>{{ z }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+
+                <td class="w-watt">
+                  <select name="power_watt">
+                    <option value=""></option>
+                    {% for w in power_watts %}
+                      <option value="{{ w }}" {% if s.power_watt == w %}selected{% endif %}>{{ w }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+
+                <td class="w-heart"><input name="heartbeat" value="{{ s.heartbeat or '' }}"></td>
+                <td class="w-soki"><input name="soki_name" value="{{ s.soki_name or '' }}"></td>
+                <td class="w-san"><input name="san" value="{{ s.san or '' }}"></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </form>
+  </div>
 </body>
 </html>
