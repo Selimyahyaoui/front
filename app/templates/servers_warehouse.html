@@ -5,48 +5,42 @@
   <title>Serveurs en stock (warehouse)</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    .table { width: 100%; border-collapse: collapse; }
-    .table th, .table td { border: 1px solid #ddd; padding: 6px; }
-    .table thead th { background: #f4f6f8; position: sticky; top: 0; }
-    .alert { padding: 10px; border-radius: 4px; margin: 10px 0; }
-    .alert-success { background: #e6f4ea; border: 1px solid #b7e1c0; }
-    .alert-danger { background: #fdecea; border: 1px solid #f5c2c0; }
-    .actions { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
-    .btn { padding: 8px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
-    .btn-primary { background: #1e7e34; color: #fff; border-color: #1e7e34; }
-    .form-control { width: 100%; }
-    .form-control-sm { padding: 4px; font-size: 0.9rem; }
-    .header { display:flex; align-items:center; gap:10px; }
-    .logo { height:40px; }
+    .table-responsive{overflow:auto}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{border:1px solid #ddd;padding:6px;white-space:nowrap}
+    .table thead th{background:#f5f5f5;position:sticky;top:0}
+    .alert{margin:10px 0;padding:10px;border-radius:4px}
+    .alert-success{background:#e7f6ec;border:1px solid #b8e0c7}
+    .alert-danger{background:#fdeaea;border:1px solid #f1b4b4}
+    .actions{display:flex;gap:10px;align-items:center;margin:10px 0}
+    .btn{padding:6px 10px;border:1px solid #0c6;border-radius:4px;background:#0c6;color:#fff;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
   </style>
 </head>
 <body>
-<header class="header">
-  <img src="/static/bnp_logo.png" alt="BNP" class="logo" />
-  <h1>Serveurs en stock (warehouse)</h1>
-</header>
+  <h2>Serveurs en stock (warehouse)</h2>
 
-<div class="content">
   {% if message_ok %}
-  <div class="alert alert-success">{{ message_ok }}</div>
+    <div class="alert alert-success">{{ message_ok }}</div>
   {% endif %}
   {% if message_error %}
-  <div class="alert alert-danger">{{ message_error }}</div>
+    <div class="alert alert-danger">{{ message_error }}</div>
   {% endif %}
 
-  <form method="post" action="/servers/warehouse" onsubmit="collectSelection()">
+  <form method="post" action="/servers/warehouse" onsubmit="return beforeSubmit()">
     <input type="hidden" name="selected_ids" id="selected_ids" value="" />
+    <input type="hidden" name="data_payload" id="data_payload" value="[]" />
 
     <div class="actions">
       <label><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
-      <button class="btn btn-primary" type="submit">Générer le JSON des serveurs cochés</button>
+      <button class="btn" type="submit">Générer le JSON des serveurs cochés</button>
     </div>
 
     <div class="table-responsive">
-      <table class="table table-sm table-bordered align-middle">
-        <thead class="table-light">
+      <table class="table table-sm">
+        <thead>
           <tr>
-            <th><input type="checkbox" id="check_all_head" onclick="toggleAll(this)"></th>
+            <th><input type="checkbox" id="check_all2" onclick="toggleAll(this)"></th>
             <th>PO Number</th>
             <th>Vendor</th>
             <th>Model</th>
@@ -62,83 +56,98 @@
             <th>SAN</th>
           </tr>
         </thead>
-        <tbody>
-        {% for s in servers %}
+        <tbody id="tbl">
+          {% for s in servers %}
           <tr data-id="{{ s.id }}">
+            <td><input type="checkbox" class="row-check"></td>
+            <td>{{ s.po_number }}</td>
+            <td>{{ s.vendor }}</td>
+            <td>{{ s.model }}</td>
+            <td>{{ s.cfi_code }}</td>
+            <td>{{ s.serial }}</td>
+            <td>{{ s.country }}</td>
+            <td><input type="number" min="0" value="{{ s.nic_count }}" class="nic"></td>
+
             <td>
-              <input type="checkbox" class="row-check" data-id="{{ s.id }}">
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="po_number_{{ s.id }}" value="{{ s.po_number }}" readonly>
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="vendor_{{ s.id }}" value="{{ s.vendor }}" readonly>
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="model_{{ s.id }}" value="{{ s.model }}" readonly>
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="cfi_code_{{ s.id }}" value="{{ s.cfi_code }}">
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="serial_{{ s.id }}" value="{{ s.serial }}" readonly>
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="country_{{ s.id }}" value="{{ s.country }}" readonly>
-            </td>
-            <td>
-              <input class="form-control form-control-sm" type="number" min="0" name="nic_count_{{ s.id }}" value="{{ s.nic_count }}">
-            </td>
-            <td>
-              <select class="form-control form-control-sm" name="ap_code_{{ s.id }}">
-                <option value="">— sélection —</option>
+              <select class="apcode">
+                <option value="">— Sélectionner —</option>
                 {% for ap in ap_codes %}
-                  <option value="{{ ap }}" {% if ap == s.ap_code %}selected{% endif %}>{{ ap }}</option>
+                  <option value="{{ ap }}" {% if ap == s.ap_code_authorized %}selected{% endif %}>{{ ap }}</option>
                 {% endfor %}
               </select>
             </td>
+
             <td>
-              <select class="form-control form-control-sm" name="physical_zone_{{ s.id }}">
-                <option value="">— sélection —</option>
-                {% for pz in physical_zones %}
-                  <option value="{{ pz }}">{{ pz }}</option>
+              <select class="pzone">
+                <option value="">— Sélectionner —</option>
+                {% for z in physical_zones %}
+                  <option value="{{ z }}">{{ z }}</option>
                 {% endfor %}
               </select>
             </td>
+
             <td>
-              <select class="form-control form-control-sm" name="power_watt_{{ s.id }}">
-                <option value="0">—</option>
-                {% for w in power_watts %}
-                  <option value="{{ w }}">{{ w }}</option>
-                {% endfor %}
+              <select class="pwatt">
+                <option value="">—</option>
+                <option>150</option><option>200</option><option>250</option><option>300</option>
+                <option>350</option><option>400</option><option>450</option><option>500</option>
+                <option>550</option><option>600</option><option>650</option><option>700</option>
+                <option>750</option><option>800</option><option>850</option><option>900</option>
+                <option>950</option>
               </select>
             </td>
-            <td class="text-center">
-              <input type="checkbox" name="heartbeat_{{ s.id }}">
-            </td>
-            <td>
-              <input class="form-control form-control-sm" name="soki_name_{{ s.id }}" placeholder="Nom soki">
-            </td>
-            <td class="text-center">
-              <input type="checkbox" name="san_{{ s.id }}">
-            </td>
+
+            <td style="text-align:center"><input type="checkbox" class="heartbeat"></td>
+            <td><input type="text" class="soki" value=""></td>
+            <td style="text-align:center"><input type="checkbox" class="san"></td>
           </tr>
-        {% endfor %}
+          {% endfor %}
         </tbody>
       </table>
     </div>
   </form>
-</div>
 
 <script>
-function toggleAll(cb) {
-  document.querySelectorAll('.row-check').forEach(x => x.checked = cb.checked);
+function toggleAll(box){
+  const checks = document.querySelectorAll('.row-check');
+  checks.forEach(c => c.checked = box.checked);
 }
-function collectSelection() {
-  const ids = Array.from(document.querySelectorAll('.row-check'))
-    .filter(x => x.checked)
-    .map(x => x.getAttribute('data-id'));
-  document.getElementById('selected_ids').value = ids.join(',');
+
+function beforeSubmit(){
+  const rows = Array.from(document.querySelectorAll('#tbl tr'));
+  const selected = [];
+  const payload = [];
+  rows.forEach(tr => {
+    const id = tr.getAttribute('data-id');
+    const checked = tr.querySelector('.row-check').checked;
+    const nic    = tr.querySelector('.nic').value || null;
+    const ap     = tr.querySelector('.apcode').value || null;
+    const pz     = tr.querySelector('.pzone').value || null;
+    const pw     = tr.querySelector('.pwatt').value || null;
+    const hb     = tr.querySelector('.heartbeat').checked || false;
+    const soki   = tr.querySelector('.soki').value || '';
+    const san    = tr.querySelector('.san').checked || false;
+
+    const base = {
+      id,
+      nic_count: nic ? parseInt(nic) : 0,
+      ap_code_authorized: ap || "",
+      physical_zone: pz || "",
+      power_watt: pw ? parseInt(pw) : null,
+      heartbeat: hb,
+      soki_name: soki || "",
+      san: san
+    };
+
+    if (checked) selected.push(id);
+    payload.push(base);
+  });
+
+  document.getElementById('selected_ids').value = selected.join(',');
+  document.getElementById('data_payload').value = JSON.stringify(
+    payload.filter(p => selected.includes(p.id))
+  );
+  return true;
 }
 </script>
 </body>
