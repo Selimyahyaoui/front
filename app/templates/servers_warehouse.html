@@ -30,7 +30,7 @@
     .tbl tbody tr:nth-child(odd){background:#fcfcfe}
     .tbl tbody tr:hover{background:#f5f7ff}
     .tbl .col-check{width:42px;text-align:center}
-    /* widths so values aren’t cut */
+    /* prevent clipping of values */
     .w-po{min-width:140px} .w-vendor{min-width:95px} .w-model{min-width:95px}
     .w-cfi{min-width:110px} .w-serial{min-width:150px} .w-country{min-width:90px}
     .w-nic{min-width:110px} .w-ap{min-width:130px} .w-pz{min-width:140px}
@@ -53,13 +53,13 @@
 
     function updateGenerateState(){
       const checkedCount = document.querySelectorAll("input.row-check:checked").length;
-      document.getElementById("btn-generate").disabled = checkedCount === 0;
+      const btn = document.getElementById("btn-generate");
+      if (btn) btn.disabled = checkedCount === 0;
     }
 
     function toggleAll(master){
       document.querySelectorAll("input.row-check").forEach(cb => {
         cb.checked = master.checked;
-        // force change event so state updates even if value didn’t “change”
         cb.dispatchEvent(new Event("change", {bubbles:true}));
       });
       updateGenerateState();
@@ -81,13 +81,13 @@
           cfi_code:  pick("input[name='cfi_code']")  || null,
           serial:    pick("input[name='serial']")    || null,
           country:   pick("input[name='country']")   || null,
-          nic_count: toNumberOrNull(pick(\"input[name='nic_count']\")),
-          ap_code_authorized: pick(\"select[name='ap_code_authorized']\") || null,
-          physical_zone:      pick(\"select[name='physical_zone']\")      || null,
-          power_watt:         toNumberOrNull(pick(\"select[name='power_watt']\")),
-          heartbeat: pick(\"input[name='heartbeat']\") || null,
-          soki_name: pick(\"input[name='soki_name']\") || null,
-          san:       pick(\"input[name='san']\")       || null
+          nic_count: toNumberOrNull(pick("input[name='nic_count']")),
+          ap_code_authorized: pick("select[name='ap_code_authorized']") || null,
+          physical_zone:      pick("select[name='physical_zone']")      || null,
+          power_watt:         toNumberOrNull(pick("select[name='power_watt']")),
+          heartbeat: pick("input[name='heartbeat']") || null,
+          soki_name: pick("input[name='soki_name']") || null,
+          san:       pick("input[name='san']")       || null
         });
       });
 
@@ -95,14 +95,13 @@
         generated_at: new Date().toISOString(),
         servers: rows
       });
-      return true; // allow form submit
+      return true; // submit
     }
 
-    // Global listener: any checkbox change updates the button
+    // Any checkbox change updates button state
     document.addEventListener("change", e=>{
       if(e.target.matches("input[type='checkbox']")) updateGenerateState();
     });
-
     document.addEventListener("DOMContentLoaded", updateGenerateState);
   </script>
 </head>
@@ -151,9 +150,7 @@
             <tbody>
               {% for s in servers %}
               <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
-                <td class="col-check">
-                  <input type="checkbox" class="row-check" aria-label="Sélectionner">
-                </td>
+                <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
 
                 <td class="w-po"><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
                 <td class="w-vendor"><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
