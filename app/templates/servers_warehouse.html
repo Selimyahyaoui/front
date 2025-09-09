@@ -5,183 +5,188 @@
   <title>Serveurs en stock (warehouse)</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    /* keep the “old look” but make columns readable */
-    .panel      { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:18px; }
-    .toolbar    { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
-    .btn        { border:0; border-radius:6px; padding:8px 14px; cursor:pointer; }
-    .btn-primary{ background:#2ecc71; color:#fff; }
-    .btn-ghost  { background:#f3f5f7; color:#333; }
-    .btn:disabled{ opacity:.5; cursor:not-allowed; }
-    table       { width:100%; border-collapse:separate; border-spacing:0 8px; }
-    thead th    { font-size:12px; letter-spacing:.02em; color:#6b7280; text-transform:uppercase; }
-    tbody td    { background:#f8fafc; border:1px solid #e5e7eb; padding:6px; }
-    tbody tr td:first-child { border-radius:6px 0 0 6px; }
-    tbody tr td:last-child  { border-radius:0 6px 6px 0; }
-    .cell       { display:flex; align-items:center; gap:8px; }
-    .cell input[type="text"] { width: 140px; }             /* show full values */
-    .cell input.readonly     { background:#eef2f7; }
-    .cell .short             { width: 70px; }
-    .cell .xs                { width: 52px; text-align:center; }
-    .cell select             { min-width: 120px; }
-    .row-check               { transform: translateY(2px); }
-    .header-row              { display:flex; align-items:center; gap:10px; justify-content:space-between; }
-    .left-actions            { display:flex; align-items:center; gap:10px; }
-    .right-actions           { display:flex; align-items:center; gap:10px; }
-    .muted                   { color:#6b7280; font-size:12px; }
+    .page-wrap { max-width: 1180px; margin: 24px auto; }
+    .toolbar { display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .toolbar-left { display:flex; gap:14px; align-items:center; }
+    .btn-primary { background:#28a745; border-color:#28a745; }
+    .card { background:#fff; border:1px solid #e5e5e5; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .card-body { padding:14px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; }
+    thead th { background:#f7f7f9; font-weight:600; font-size:13px; padding:10px; border-bottom:1px solid #e7e7ea; white-space:nowrap; }
+    tbody td { padding:8px; border-bottom:1px solid #f0f0f3; vertical-align:middle; }
+    .row-check { width:22px; text-align:center; }
+    .form-control, .form-select { width:100%; font-size:13px; height:32px; }
+    .w-po     { min-width: 120px; }
+    .w-vendor { min-width: 85px; }
+    .w-model  { min-width: 85px; }
+    .w-cfi    { min-width: 80px; }
+    .w-serial { min-width: 130px; }
+    .w-country{ min-width: 80px; }
+    .w-nic    { min-width: 95px; }
+    .w-apcode { min-width: 110px; }
+    .w-pz     { min-width: 120px; }
+    .w-watt   { min-width: 95px; }
+    .w-heart  { min-width: 95px; }
+    .w-soki   { min-width: 120px; }
+    .w-san    { min-width: 90px; }
+    .hint { font-size:12px; color:#6b7280; }
+    .toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:10px 12px; border-radius:6px; opacity:0; pointer-events:none; transition:opacity .2s; }
+    .toast.show { opacity:1; }
   </style>
 </head>
 <body>
-  <div class="panel">
-    <div class="header-row">
-      <div>
-        <h2 style="margin:0;">Serveurs en stock (warehouse)</h2>
-        <div class="muted">Sélectionnez, modifiez puis générez le JSON</div>
+  <div class="page-wrap">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <h2 style="margin:0">Serveurs en stock (warehouse)</h2>
+        <span class="hint">Sélectionnez, modifiez puis générez le JSON</span>
       </div>
-      <div class="right-actions">
-        <!-- master “Tout cocher” (outside table header on purpose) -->
-        <label class="muted"><input id="check_all" type="checkbox" /> Tout cocher</label>
+      <div>
         <button id="btn-generate" class="btn btn-primary" disabled>Générer le JSON des serveurs cochés</button>
-        <a href="/" class="btn btn-ghost">Accueil</a>
+        <a class="btn" href="/">Accueil</a>
       </div>
     </div>
 
-    <!-- We’ll fill this hidden field with the JSON payload on submit -->
-    <form id="payloadForm" method="post" action="/servers/warehouse/json">
-      <input type="hidden" name="payload" id="payload" />
-    </form>
+    <div class="card">
+      <div class="card-body">
+        <form id="srv-form" method="post" action="/servers/warehouse">
+          <input type="hidden" name="selected_ids" id="selected_ids" value="" />
 
-    <table>
-      <thead>
-        <tr>
-          <!-- no checkbox in header -->
-          <th></th>
-          <th>PO Number</th>
-          <th>Vendor</th>
-          <th>Model</th>
-          <th>CFI Code</th>
-          <th>Serial</th>
-          <th>Country</th>
-          <th>NIC Interface Number</th>
-          <th>AP code authorized</th>
-          <th>Physical Zone</th>
-          <th>Power Watt</th>
-          <th>HeartBeat</th>
-          <th>Soki Name</th>
-          <th>SAN</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for s in servers %}
-        <tr data-id="{{ s.id }}">
-          <td class="cell">
-            <input type="checkbox" class="row-check" />
-          </td>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th class="row-check"></th>
+                  <th class="w-po">PO Number</th>
+                  <th class="w-vendor">Vendor</th>
+                  <th class="w-model">Model</th>
+                  <th class="w-cfi">CFI Code</th>
+                  <th class="w-serial">Serial</th>
+                  <th class="w-country">Country</th>
+                  <th class="w-nic">NIC Interface Number</th>
+                  <th class="w-apcode">AP code authorized</th>
+                  <th class="w-pz">Physical Zone</th>
+                  <th class="w-watt">Power Watt</th>
+                  <th class="w-heart">HeartBeat</th>
+                  <th class="w-soki">Soki Name</th>
+                  <th class="w-san">SAN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in servers %}
+                <tr data-id="{{ s.id }}">
+                  <td class="row-check">
+                    <input type="checkbox" class="row-select" />
+                  </td>
 
-          <td class="cell"><input class="readonly" type="text" value="{{ s.po_number }}" readonly /></td>
-          <td class="cell"><input class="readonly short" type="text" value="{{ s.vendor }}" readonly /></td>
-          <td class="cell"><input class="readonly short" type="text" value="{{ s.model }}" readonly /></td>
-          <td class="cell"><input class="readonly short" type="text" value="{{ s.cfi_code }}" readonly /></td>
-          <td class="cell"><input class="readonly short" type="text" value="{{ s.serial }}" readonly /></td>
-          <td class="cell"><input class="readonly xs" type="text" value="{{ s.country }}" readonly /></td>
+                  <td class="w-po">
+                    <input class="form-control" value="{{ s.po_number or '' }}" readonly />
+                  </td>
+                  <td class="w-vendor">
+                    <input class="form-control" value="{{ s.vendor or '' }}" readonly />
+                  </td>
+                  <td class="w-model">
+                    <input class="form-control" value="{{ s.model or '' }}" readonly />
+                  </td>
+                  <td class="w-cfi">
+                    <input class="form-control" value="{{ s.cfi_code or '' }}" readonly />
+                  </td>
+                  <td class="w-serial">
+                    <input class="form-control" value="{{ s.serial or '' }}" readonly />
+                  </td>
+                  <td class="w-country">
+                    <input class="form-control" value="{{ s.country or '' }}" readonly />
+                  </td>
+                  <td class="w-nic">
+                    <input class="form-control" type="number" min="0" name="nic_{{ s.id }}" value="{{ s.nic_count or '' }}" />
+                  </td>
 
-          <td class="cell">
-            <input type="number" class="xs nic" min="0" step="1" value="{{ s.nic_count }}" />
-          </td>
+                  <td class="w-apcode">
+                    <select class="form-select" name="apcode_{{ s.id }}">
+                      <option value="">—</option>
+                      {% for ap in ap_codes %}
+                        <option value="{{ ap }}" {% if s.ap_code_authorized==ap %}selected{% endif %}>{{ ap }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
 
-          <td class="cell">
-            <select class="ap">
-              <option value=""></option>
-              {% for ap in ap_codes %}
-                <option value="{{ ap }}" {% if ap==s.ap_code %}selected{% endif %}>{{ ap }}</option>
-              {% endfor %}
-            </select>
-          </td>
+                  <td class="w-pz">
+                    <select class="form-select" name="pz_{{ s.id }}">
+                      <option value="">—</option>
+                      {% for pz in physical_zones %}
+                        <option value="{{ pz }}" {% if s.physical_zone==pz %}selected{% endif %}>{{ pz }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
 
-          <td class="cell">
-            <select class="pz">
-              <option value=""></option>
-              {% for pz in physical_zones %}
-                <option value="{{ pz }}" {% if pz==s.physical_zone %}selected{% endif %}>{{ pz }}</option>
-              {% endfor %}
-            </select>
-          </td>
+                  <td class="w-watt">
+                    <select class="form-select" name="watt_{{ s.id }}">
+                      <option value="">—</option>
+                      {% for w in power_watts %}
+                        <option value="{{ w }}" {% if s.power_watt==w %}selected{% endif %}>{{ w }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
 
-          <td class="cell">
-            <select class="pw xs">
-              <option value=""></option>
-              {% for w in power_watts %}
-                <option value="{{ w }}" {% if w==s.power_watt %}selected{% endif %}>{{ w }}</option>
-              {% endfor %}
-            </select>
-          </td>
-
-          <td class="cell"><input type="text" class="hb short" value="{{ s.heartbeat or '' }}" /></td>
-          <td class="cell"><input type="text" class="soki short" value="{{ s.soki_name or '' }}" /></td>
-          <td class="cell"><input type="text" class="san short" value="{{ s.san or '' }}" /></td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+                  <td class="w-heart">
+                    <input class="form-control" name="hb_{{ s.id }}" value="{{ s.heartbeat or '' }}" />
+                  </td>
+                  <td class="w-soki">
+                    <input class="form-control" name="soki_{{ s.id }}" value="{{ s.soki_name or '' }}" />
+                  </td>
+                  <td class="w-san">
+                    <input class="form-control" name="san_{{ s.id }}" value="{{ s.san or '' }}" />
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
+  <div id="toast" class="toast">Aucune ligne sélectionnée.</div>
+
   <script>
-    const checkAll = document.getElementById('check_all');
-    const generateBtn = document.getElementById('btn-generate');
-    const form = document.getElementById('payloadForm');
-    const payloadInput = document.getElementById('payload');
+    const form = document.getElementById('srv-form');
+    const btn  = document.getElementById('btn-generate');
+    const toast = document.getElementById('toast');
 
-    function selectedRows() {
-      return Array.from(document.querySelectorAll('tbody .row-check:checked'))
-                  .map(cb => cb.closest('tr'));
+    function showToast(msg) {
+      toast.textContent = msg || 'Aucune ligne sélectionnée.';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    function refreshButton() {
-      generateBtn.disabled = selectedRows().length === 0;
-    }
-
-    // master checkbox
-    checkAll?.addEventListener('change', () => {
-      document.querySelectorAll('tbody .row-check').forEach(cb => { cb.checked = checkAll.checked; });
-      refreshButton();
-    });
-
-    // per-row checkboxes
-    document.querySelectorAll('tbody .row-check').forEach(cb => {
-      cb.addEventListener('change', refreshButton);
-    });
-
-    // build payload then POST
-    generateBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const rows = selectedRows();
-      if (!rows.length) return;
-
-      const out = rows.map(tr => {
-        const id = tr.getAttribute('data-id');
-        return {
-          id: Number(id),
-          po_number:   tr.querySelector('td:nth-child(2) input').value,
-          vendor:      tr.querySelector('td:nth-child(3) input').value,
-          model:       tr.querySelector('td:nth-child(4) input').value,
-          cfi_code:    tr.querySelector('td:nth-child(5) input').value,
-          serial:      tr.querySelector('td:nth-child(6) input').value,
-          country:     tr.querySelector('td:nth-child(7) input').value,
-          nic_count:   Number(tr.querySelector('.nic').value || 0),
-          ap_code:     tr.querySelector('.ap').value || '',
-          physical_zone: tr.querySelector('.pz').value || '',
-          power_watt:  tr.querySelector('.pw').value ? Number(tr.querySelector('.pw').value) : null,
-          heartbeat:   tr.querySelector('.hb').value || '',
-          soki_name:   tr.querySelector('.soki').value || '',
-          san:         tr.querySelector('.san').value || ''
-        };
+    function computeSelection() {
+      const rows = [...document.querySelectorAll('tbody tr')];
+      const selected = [];
+      rows.forEach(tr => {
+        const cb = tr.querySelector('.row-select');
+        if (cb && cb.checked) selected.push(tr.dataset.id);
       });
+      document.getElementById('selected_ids').value = selected.join(',');
+      btn.disabled = selected.length === 0;
+      return selected;
+    }
 
-      payloadInput.value = JSON.stringify(out);
+    // Enable/disable button as user checks rows
+    document.addEventListener('change', e => {
+      if (e.target.classList.contains('row-select')) computeSelection();
+    });
+
+    // Submit to generate JSON
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const ids = computeSelection();
+      if (!ids.length) { showToast(); return; }
       form.submit();
     });
 
-    // initial state
-    refreshButton();
+    // Initial state
+    computeSelection();
   </script>
 </body>
 </html>
