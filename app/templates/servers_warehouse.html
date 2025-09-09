@@ -5,42 +5,53 @@
   <title>Serveurs en stock (warehouse)</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    .table-sm td input, .table-sm td select { width: 100%; }
-    .sticky-actions{ position: sticky; top: 0; background: #fff; padding: 8px 0; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { border: 1px solid #ddd; padding: 6px; }
+    .table thead th { background: #f4f6f8; position: sticky; top: 0; }
+    .alert { padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .alert-success { background: #e6f4ea; border: 1px solid #b7e1c0; }
+    .alert-danger { background: #fdecea; border: 1px solid #f5c2c0; }
+    .actions { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+    .btn { padding: 8px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    .btn-primary { background: #1e7e34; color: #fff; border-color: #1e7e34; }
+    .form-control { width: 100%; }
+    .form-control-sm { padding: 4px; font-size: 0.9rem; }
+    .header { display:flex; align-items:center; gap:10px; }
+    .logo { height:40px; }
   </style>
 </head>
 <body>
-<header>
+<header class="header">
   <img src="/static/bnp_logo.png" alt="BNP" class="logo" />
   <h1>Serveurs en stock (warehouse)</h1>
 </header>
 
 <div class="content">
   {% if message_ok %}
-    <div class="alert alert-success">{{ message_ok }}</div>
+  <div class="alert alert-success">{{ message_ok }}</div>
   {% endif %}
   {% if message_error %}
-    <div class="alert alert-danger">{{ message_error }}</div>
+  <div class="alert alert-danger">{{ message_error }}</div>
   {% endif %}
 
   <form method="post" action="/servers/warehouse" onsubmit="collectSelection()">
-    <div class="sticky-actions">
-      <button type="submit" class="btn btn-primary">Générer le JSON des serveurs cochés</button>
-      <label style="margin-left:12px">
-        <input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher
-      </label>
-      <input type="hidden" name="selected_ids" id="selected_ids" value="">
+    <input type="hidden" name="selected_ids" id="selected_ids" value="" />
+
+    <div class="actions">
+      <label><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
+      <button class="btn btn-primary" type="submit">Générer le JSON des serveurs cochés</button>
     </div>
 
     <div class="table-responsive">
       <table class="table table-sm table-bordered align-middle">
         <thead class="table-light">
           <tr>
-            <th></th>
+            <th><input type="checkbox" id="check_all_head" onclick="toggleAll(this)"></th>
             <th>PO Number</th>
             <th>Vendor</th>
             <th>Model</th>
-            <th>CFI code</th>
+            <th>CFI Code</th>
+            <th>Serial</th>
             <th>Country</th>
             <th>NIC Interface Number</th>
             <th>AP code authorized</th>
@@ -53,58 +64,64 @@
         </thead>
         <tbody>
         {% for s in servers %}
-          <tr>
+          <tr data-id="{{ s.id }}">
             <td>
               <input type="checkbox" class="row-check" data-id="{{ s.id }}">
             </td>
-
-            <!-- Champs non éditables (affichés en readonly pour info) -->
-            <td><input class="form-control form-control-sm" value="{{ s.po_number or '' }}" readonly></td>
-            <td><input class="form-control form-control-sm" value="{{ s.vendor or '' }}" readonly></td>
-            <td><input class="form-control form-control-sm" value="{{ s.model or '' }}" readonly></td>
-            <td><input class="form-control form-control-sm" value="{{ s.cfi_code or '' }}" readonly></td>
-            <td><input class="form-control form-control-sm" value="{{ s.country or '' }}" readonly></td>
-
-            <!-- NIC count (éditable) -->
             <td>
-              <input name="nic_{{ s.id }}" type="number" min="0" class="form-control form-control-sm"
-                     value="{{ s.nic_count or 0 }}">
+              <input class="form-control form-control-sm" name="po_number_{{ s.id }}" value="{{ s.po_number }}" readonly>
             </td>
-
-            <!-- AP code authorized (liste) -->
             <td>
-              <select name="ap_{{ s.id }}" class="form-control form-control-sm">
-                <option value="">— sélectionner —</option>
+              <input class="form-control form-control-sm" name="vendor_{{ s.id }}" value="{{ s.vendor }}" readonly>
+            </td>
+            <td>
+              <input class="form-control form-control-sm" name="model_{{ s.id }}" value="{{ s.model }}" readonly>
+            </td>
+            <td>
+              <input class="form-control form-control-sm" name="cfi_code_{{ s.id }}" value="{{ s.cfi_code }}">
+            </td>
+            <td>
+              <input class="form-control form-control-sm" name="serial_{{ s.id }}" value="{{ s.serial }}" readonly>
+            </td>
+            <td>
+              <input class="form-control form-control-sm" name="country_{{ s.id }}" value="{{ s.country }}" readonly>
+            </td>
+            <td>
+              <input class="form-control form-control-sm" type="number" min="0" name="nic_count_{{ s.id }}" value="{{ s.nic_count }}">
+            </td>
+            <td>
+              <select class="form-control form-control-sm" name="ap_code_{{ s.id }}">
+                <option value="">— sélection —</option>
                 {% for ap in ap_codes %}
-                  <option value="{{ ap }}" {% if s.ap_code_authorized == ap %}selected{% endif %}>{{ ap }}</option>
+                  <option value="{{ ap }}" {% if ap == s.ap_code %}selected{% endif %}>{{ ap }}</option>
                 {% endfor %}
               </select>
             </td>
-
-            <!-- Physical Zone (liste) -->
             <td>
-              <select name="pz_{{ s.id }}" class="form-control form-control-sm">
-                <option value="">— sélectionner —</option>
+              <select class="form-control form-control-sm" name="physical_zone_{{ s.id }}">
+                <option value="">— sélection —</option>
                 {% for pz in physical_zones %}
-                  <option value="{{ pz }}" {% if s.physical_zone_target == pz %}selected{% endif %}>{{ pz }}</option>
+                  <option value="{{ pz }}">{{ pz }}</option>
                 {% endfor %}
               </select>
             </td>
-
-            <!-- Power (liste) -->
             <td>
-              <select name="pw_{{ s.id }}" class="form-control form-control-sm">
-                <option value="">—</option>
+              <select class="form-control form-control-sm" name="power_watt_{{ s.id }}">
+                <option value="0">—</option>
                 {% for w in power_watts %}
-                  <option value="{{ w }}" {% if s.power_watt == w %}selected{% endif %}>{{ w }}</option>
+                  <option value="{{ w }}">{{ w }}</option>
                 {% endfor %}
               </select>
             </td>
-
-            <!-- HeartBeat / Soki / SAN (textes) -->
-            <td><input name="hb_{{ s.id }}" class="form-control form-control-sm" value="{{ s.heartbeat or '' }}"></td>
-            <td><input name="soki_{{ s.id }}" class="form-control form-control-sm" value="{{ s.soki or '' }}"></td>
-            <td><input name="san_{{ s.id }}" class="form-control form-control-sm" value="{{ s.san or '' }}"></td>
+            <td class="text-center">
+              <input type="checkbox" name="heartbeat_{{ s.id }}">
+            </td>
+            <td>
+              <input class="form-control form-control-sm" name="soki_name_{{ s.id }}" placeholder="Nom soki">
+            </td>
+            <td class="text-center">
+              <input type="checkbox" name="san_{{ s.id }}">
+            </td>
           </tr>
         {% endfor %}
         </tbody>
@@ -114,14 +131,15 @@
 </div>
 
 <script>
-  function toggleAll(source){
-    document.querySelectorAll('.row-check').forEach(cb => cb.checked = source.checked);
-  }
-  function collectSelection(){
-    const ids = Array.from(document.querySelectorAll('.row-check:checked'))
-      .map(cb => cb.getAttribute('data-id'));
-    document.getElementById('selected_ids').value = ids.join(',');
-  }
+function toggleAll(cb) {
+  document.querySelectorAll('.row-check').forEach(x => x.checked = cb.checked);
+}
+function collectSelection() {
+  const ids = Array.from(document.querySelectorAll('.row-check'))
+    .filter(x => x.checked)
+    .map(x => x.getAttribute('data-id'));
+  document.getElementById('selected_ids').value = ids.join(',');
+}
 </script>
 </body>
 </html>
