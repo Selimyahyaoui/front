@@ -1,235 +1,156 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Serveurs en stock (warehouse)</title>
-  <!-- keep your global stylesheet if you have one -->
-  <link rel="stylesheet" href="/static/style.css" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root{
-      --brand:#14823b;
-      --brand-ink:#0f5f2c;
-      --ink:#1f2937;
-      --muted:#6b7280;
-      --bg:#f7f7f9;
-      --card:#ffffff;
-      --border:#e5e7eb;
-      --success-bg:#e7f6ea;
-      --success-ink:#116d37;
-      --danger-bg:#fdeaea;
-      --danger-ink:#8a1d1d;
-    }
+# app/routers/servers_warehouse.py
+from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import HTMLResponse
+from starlette.templating import Jinja2Templates
+from pathlib import Path
+import os, json
 
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";}
-    .shell{max-width:1200px;margin:24px auto;padding:0 16px;}
+from app.db.database import get_connection
 
-    /* Header */
-    .hero{
-      display:flex;align-items:center;gap:14px;background:var(--card);
-      border:1px solid var(--border); border-radius:10px; padding:14px 16px;
-      box-shadow:0 1px 2px rgba(0,0,0,.04);
-      margin-bottom:14px;
-    }
-    .hero img{height:28px}
-    .hero h1{font-size:18px;margin:0}
-    .hero .pill{margin-left:auto;font-size:12px;color:var(--muted)}
+router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
 
-    /* Toolbar */
-    .toolbar{
-      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-      background:var(--card);border:1px solid var(--border);border-radius:10px;
-      padding:12px 14px;margin-bottom:14px
-    }
-    .toolbar .spacer{flex:1}
-    .btn{
-      display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;
-      background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;
-      box-shadow:0 1px 2px rgba(0,0,0,.06)
-    }
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-    .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
-    .hint{color:var(--muted);font-size:12px}
+# Where we store the JSON to be consumed by your orchestrator (PVC mounted path)
+SERVERS_JSON_PATH = Path(os.getenv("SERVERS_JSON_PATH", "/app/uploads/servers_selection.json"))
 
-    /* Card table wrapper */
-    .card{
-      background:var(--card);border:1px solid var(--border);border-radius:10px;
-      overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)
-    }
+POWER_WATTS = [150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950]
 
-    /* Table */
-    .tbl{width:100%;border-collapse:separate;border-spacing:0}
-    .tbl thead th{
-      position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;
-      color:var(--muted);padding:10px 10px;z-index:1
-    }
-    .tbl td{border-bottom:1px solid var(--border);padding:10px}
-    .tbl tbody tr:nth-child(odd){background:#fcfcfe}
-    .tbl tbody tr:hover{background:#f5f7ff}
-    .tbl .col-check{width:42px;text-align:center}
-    .tbl .ctrl{width:160px}
-    .tbl input,.tbl select{
-      width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;
-      padding:6px 8px;background:#fff;font:inherit
-    }
-    .tbl input[readonly]{background:#f7f7f9;color:#555}
 
-    /* Alerts */
-    .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
-    .alert.success{background:var(--success-bg);color:var(--success-ink);border-color:#ccebd6}
-    .alert.error{background:var(--danger-bg);color:var(--danger-ink);border-color:#f5c2c2}
+# ---------- small DB helpers ----------
+def _safe_fetchall(sql: str, params: Optional[tuple] = None) -> List[tuple]:
+    with get_connection() as conn:
+        conn.autocommit = False
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            rows = cur.fetchall()
+        conn.commit()
+        return rows
 
-    /* Responsive */
-    @media (max-width: 900px){
-      .tbl .ctrl{width:120px}
-    }
-    @media (max-width: 720px){
-      .tbl thead th{font-size:11px}
-      .tbl .ctrl{width:110px}
-    }
-  </style>
-  <script>
-    function toggleAll(master){
-      document.querySelectorAll(".row-check").forEach(cb => cb.checked = master.checked);
-      updateGenerateState();
-    }
-    function updateGenerateState(){
-      const anyChecked = [...document.querySelectorAll(".row-check")].some(cb => cb.checked);
-      document.getElementById("btn-generate").disabled = !anyChecked;
-    }
-    function collectAndSubmit(form){
-      const rows = [];
-      document.querySelectorAll("tr.data-row").forEach(tr=>{
-        if(!tr.querySelector(".row-check").checked) return;
-        const get = sel => tr.querySelector(sel)?.value ?? "";
-        rows.push({
-          id: Number(tr.dataset.id),
-          po_number: get("input[name='po_number']"),
-          vendor: get("input[name='vendor']"),
-          model: get("input[name='model']"),
-          cfi_code: get("input[name='cfi_code']"),
-          serial: get("input[name='serial']"),
-          country: get("input[name='country']"),
-          nic_count: get("input[name='nic_count']") ? Number(get(\"input[name='nic_count']\")) : null,
-          ap_code_authorized: get("select[name='ap_code_authorized']"),
-          physical_zone: get("select[name='physical_zone']"),
-          power_watt: get("select[name='power_watt']") ? Number(get(\"select[name='power_watt']\")) : null,
-          heartbeat: get("input[name='heartbeat']"),
-          soki_name: get("input[name='soki_name']"),
-          san: get("input[name='san']")
-        });
-      });
-      document.getElementById("json_payload").value = JSON.stringify({
-        generated_at: new Date().toISOString(),
-        servers: rows
-      });
-      return true;
-    }
-    document.addEventListener("change", e=>{
-      if(e.target.classList.contains("row-check")) updateGenerateState();
-    });
-    document.addEventListener("DOMContentLoaded", updateGenerateState);
-  </script>
-</head>
-<body>
-  <div class="shell">
-    <div class="hero">
-      <img src="/static/bnp_logo.png" alt="BNP">
-      <h1>Serveurs en stock (warehouse)</h1>
-      <div class="pill hint">Sélectionnez, modifiez puis générez le JSON</div>
-    </div>
 
-    {% if message_ok %}
-      <div class="alert success">{{ message_ok }}</div>
-    {% endif %}
-    {% if message_error %}
-      <div class="alert error">{{ message_error }}</div>
-    {% endif %}
+def fetch_ap_codes() -> List[str]:
+    sql = """
+    SELECT DISTINCT t_server_sts_t_ap_code_authorized_ap_code
+    FROM supchain.t_server_sts
+    WHERE t_server_sts_t_ap_code_authorized_ap_code IS NOT NULL
+    ORDER BY 1
+    """
+    return [r[0] for r in _safe_fetchall(sql)]
 
-    <form method="post" action="/servers/warehouse" onsubmit="return collectAndSubmit(this)">
-      <input type="hidden" id="json_payload" name="json_payload" value="" />
 
-      <div class="toolbar">
-        <label class="hint"><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
-        <div class="spacer"></div>
-        <button type="submit" id="btn-generate" class="btn" disabled>Générer le JSON des serveurs cochés</button>
-        <a class="btn btn--ghost" href="/"><span>Accueil</span></a>
-      </div>
+def fetch_physical_zones() -> List[str]:
+    # Only zones explicitly available
+    sql = """
+    SELECT DISTINCT t_physical_zone_target
+    FROM supchain.t_physical_zone
+    WHERE t_physical_zone_date_availability = 'YES'
+    ORDER BY 1
+    """
+    return [r[0] for r in _safe_fetchall(sql)]
 
-      <div class="card">
-        <div style="overflow:auto; max-height:70vh">
-          <table class="tbl">
-            <thead>
-              <tr>
-                <th class="col-check"><input type="checkbox" onclick="toggleAll(this)" aria-label="Tout cocher"></th>
-                <th>PO Number</th>
-                <th>Vendor</th>
-                <th>Model</th>
-                <th>CFI Code</th>
-                <th>Serial</th>
-                <th>Country</th>
-                <th>NIC Interface Number</th>
-                <th>AP code authorized</th>
-                <th>Physical Zone</th>
-                <th>Power Watt</th>
-                <th>HeartBeat</th>
-                <th>Soki Name</th>
-                <th>SAN</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for s in servers %}
-              <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
-                <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
 
-                <td><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
-                <td><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
-                <td><input name="model" value="{{ s.t_server_sts_model or '' }}" readonly></td>
+def fetch_warehouse_servers() -> List[Dict[str, Any]]:
+    sql = """
+    SELECT
+        s.t_server_sts_id,
+        s.t_server_sts_po_number,
+        s.t_server_sts_vendor,
+        s.t_server_sts_model,
+        s.t_server_sts_serial,
+        s.t_server_sts_cfi_code,
+        s.t_server_sts_country,
+        s.t_server_sts_t_ap_code_authorized_ap_code,
+        s.t_server_sts_nic_count
+    FROM supchain.t_server_sts AS s
+    WHERE LOWER(TRIM(s.t_server_sts_state_string)) = 'warehouse'
+    ORDER BY s.t_server_sts_id
+    """
+    rows = _safe_fetchall(sql)
+    cols = [
+        "t_server_sts_id",
+        "t_server_sts_po_number",
+        "t_server_sts_vendor",
+        "t_server_sts_model",
+        "t_server_sts_serial",
+        "t_server_sts_cfi_code",
+        "t_server_sts_country",
+        "t_server_sts_t_ap_code_authorized_ap_code",
+        "t_server_sts_nic_count",
+    ]
+    return [dict(zip(cols, r)) for r in rows]
 
-                <td class="ctrl"><input name="cfi_code" value="{{ s.t_server_sts_cfi_code or '' }}"></td>
-                <td><input name="serial" value="{{ s.t_server_sts_serial or '' }}" readonly></td>
-                <td><input name="country" value="{{ s.t_server_sts_country or '' }}" readonly></td>
 
-                <td class="ctrl"><input name="nic_count" value="{{ s.t_server_sts_nic_count or '' }}"></td>
+def _ensure_parent_writable(p: Path) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    probe = p.parent / "._write_test"
+    with probe.open("w", encoding="utf-8") as fh:
+        fh.write("ok")
+    probe.unlink(missing_ok=True)
 
-                <td class="ctrl">
-                  <select name="ap_code_authorized">
-                    <option value=""></option>
-                    {% for ap in ap_codes %}
-                      <option value="{{ ap }}" {% if s.t_server_sts_t_ap_code_authorized_ap_code == ap %}selected{% endif %}>{{ ap }}</option>
-                    {% endfor %}
-                  </select>
-                </td>
 
-                <td class="ctrl">
-                  <select name="physical_zone">
-                    <option value=""></option>
-                    {% for z in physical_zones %}
-                      <option value="{{ z }}">{{ z }}</option>
-                    {% endfor %}
-                  </select>
-                </td>
+# ---------- routes ----------
+@router.get("/servers/warehouse", response_class=HTMLResponse)
+async def page_warehouse(request: Request):
+    servers = fetch_warehouse_servers()
+    ap_codes = fetch_ap_codes()
+    physical_zones = fetch_physical_zones()
+    return templates.TemplateResponse(
+        "servers_warehouse.html",
+        {
+            "request": request,
+            "servers": servers,
+            "ap_codes": ap_codes,
+            "physical_zones": physical_zones,
+            "power_watts": POWER_WATTS,
+            "message_ok": None,
+            "message_error": None,
+        },
+    )
 
-                <td class="ctrl">
-                  <select name="power_watt">
-                    <option value=""></option>
-                    {% for w in power_watts %}
-                      <option value="{{ w }}">{{ w }}</option>
-                    {% endfor %}
-                  </select>
-                </td>
 
-                <td class="ctrl"><input name="heartbeat" value=""></td>
-                <td class="ctrl"><input name="soki_name" value=""></td>
-                <td class="ctrl"><input name="san" value=""></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </form>
-  </div>
-</body>
-</html>
+@router.post("/servers/warehouse", response_class=HTMLResponse)
+async def generate_warehouse_json(
+    request: Request,
+    json_payload: str = Form(...),
+):
+    """
+    Receives the hidden 'json_payload' (a JSON string built in the page)
+    and writes it to SERVERS_JSON_PATH.
+    """
+    try:
+        data = json.loads(json_payload)
+        _ensure_parent_writable(SERVERS_JSON_PATH)
+        with SERVERS_JSON_PATH.open("w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+
+        servers = fetch_warehouse_servers()
+        ap_codes = fetch_ap_codes()
+        physical_zones = fetch_physical_zones()
+        return templates.TemplateResponse(
+            "servers_warehouse.html",
+            {
+                "request": request,
+                "servers": servers,
+                "ap_codes": ap_codes,
+                "physical_zones": physical_zones,
+                "power_watts": POWER_WATTS,
+                "message_ok": f"JSON généré: {SERVERS_JSON_PATH}",
+                "message_error": None,
+            },
+        )
+    except Exception as e:
+        servers = fetch_warehouse_servers()
+        ap_codes = fetch_ap_codes()
+        physical_zones = fetch_physical_zones()
+        return templates.TemplateResponse(
+            "servers_warehouse.html",
+            {
+                "request": request,
+                "servers": servers,
+                "ap_codes": ap_codes,
+                "physical_zones": physical_zones,
+                "power_watts": POWER_WATTS,
+                "message_ok": None,
+                "message_error": f"Erreur: {e}",
+            },
+        )
