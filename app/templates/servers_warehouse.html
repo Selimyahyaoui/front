@@ -1,101 +1,127 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Serveurs en stock (warehouse)</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .table-sm td input, .table-sm td select { width: 100%; }
+    .sticky-actions{ position: sticky; top: 0; background: #fff; padding: 8px 0; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/static/bnp_logo.png" alt="BNP" class="logo" />
+  <h1>Serveurs en stock (warehouse)</h1>
+</header>
 
-<h2>Serveurs en stock (warehouse)</h2>
+<div class="content">
+  {% if message_ok %}
+    <div class="alert alert-success">{{ message_ok }}</div>
+  {% endif %}
+  {% if message_error %}
+    <div class="alert alert-danger">{{ message_error }}</div>
+  {% endif %}
 
-{% if message_ok %}
-<div class="alert alert-success">{{ message_ok }}</div>
-{% endif %}
-{% if message_error %}
-<div class="alert alert-danger">{{ message_error }}</div>
-{% endif %}
+  <form method="post" action="/servers/warehouse" onsubmit="collectSelection()">
+    <div class="sticky-actions">
+      <button type="submit" class="btn btn-primary">Générer le JSON des serveurs cochés</button>
+      <label style="margin-left:12px">
+        <input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher
+      </label>
+      <input type="hidden" name="selected_ids" id="selected_ids" value="">
+    </div>
 
-<form method="post" action="/servers/warehouse" onsubmit="collectSelection()">
-  <input type="hidden" name="selected_ids" id="selected_ids" value="" />
-
-  <div class="table-responsive">
-    <table class="table table-sm table-bordered align-middle">
-      <thead class="table-light">
-        <tr>
-          <th><input type="checkbox" id="check_all" onclick="toggleAll(this)"/></th>
-          <th>PO Number</th>
-          <th>Vendor</th>
-          <th>Model</th>
-          <th>CFI</th>
-          <th>Serial</th>
-          <th>Country</th>
-          <th>NIC #</th>
-          <th>AP code authorized</th>
-          <th>Physical Zone</th>
-          <th>Power Watt</th>
-          <th>HeartBeat</th>
-          <th>Soki Name</th>
-          <th>SAN</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th></th>
+            <th>PO Number</th>
+            <th>Vendor</th>
+            <th>Model</th>
+            <th>CFI code</th>
+            <th>Country</th>
+            <th>NIC Interface Number</th>
+            <th>AP code authorized</th>
+            <th>Physical Zone</th>
+            <th>Power Watt</th>
+            <th>HeartBeat</th>
+            <th>Soki Name</th>
+            <th>SAN</th>
+          </tr>
+        </thead>
+        <tbody>
         {% for s in servers %}
-        <tr>
-          <td>
-            <input type="checkbox" class="row-check" data-id="{{ s.id }}">
-          </td>
-          <td><input class="form-control form-control-sm" value="{{ s.po_number }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.vendor }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.model }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.cfi_code }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.serial }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.country }}" readonly></td>
-          <td><input class="form-control form-control-sm" value="{{ s.nic_count }}" readonly></td>
+          <tr>
+            <td>
+              <input type="checkbox" class="row-check" data-id="{{ s.id }}">
+            </td>
 
-          <td>
-            <select class="form-select form-select-sm" name="ap_code_{{ s.id }}">
-              <option value=""></option>
-              {% for ap in ap_codes %}
-                <option value="{{ ap }}" {% if ap == s.ap_code %}selected{% endif %}>{{ ap }}</option>
-              {% endfor %}
-            </select>
-          </td>
+            <!-- Champs non éditables (affichés en readonly pour info) -->
+            <td><input class="form-control form-control-sm" value="{{ s.po_number or '' }}" readonly></td>
+            <td><input class="form-control form-control-sm" value="{{ s.vendor or '' }}" readonly></td>
+            <td><input class="form-control form-control-sm" value="{{ s.model or '' }}" readonly></td>
+            <td><input class="form-control form-control-sm" value="{{ s.cfi_code or '' }}" readonly></td>
+            <td><input class="form-control form-control-sm" value="{{ s.country or '' }}" readonly></td>
 
-          <td>
-            <select class="form-select form-select-sm" name="physical_zone_{{ s.id }}">
-              <option value=""></option>
-              {% for z in physical_zones %}
-                <option value="{{ z }}" {% if z == s.physical_zone %}selected{% endif %}>{{ z }}</option>
-              {% endfor %}
-            </select>
-          </td>
+            <!-- NIC count (éditable) -->
+            <td>
+              <input name="nic_{{ s.id }}" type="number" min="0" class="form-control form-control-sm"
+                     value="{{ s.nic_count or 0 }}">
+            </td>
 
-          <td>
-            <select class="form-select form-select-sm" name="power_watt_{{ s.id }}">
-              <option value=""></option>
-              {% for w in power_watts %}
-                <option value="{{ w }}" {% if w == s.power_watt %}selected{% endif %}>{{ w }}</option>
-              {% endfor %}
-            </select>
-          </td>
+            <!-- AP code authorized (liste) -->
+            <td>
+              <select name="ap_{{ s.id }}" class="form-control form-control-sm">
+                <option value="">— sélectionner —</option>
+                {% for ap in ap_codes %}
+                  <option value="{{ ap }}" {% if s.ap_code_authorized == ap %}selected{% endif %}>{{ ap }}</option>
+                {% endfor %}
+              </select>
+            </td>
 
-          <td><input class="form-control form-control-sm" name="heartbeat_{{ s.id }}" value="{{ s.heartbeat or '' }}"></td>
-          <td><input class="form-control form-control-sm" name="soki_{{ s.id }}" value="{{ s.soki or '' }}"></td>
-          <td><input class="form-control form-control-sm" value="{{ s.san or '' }}" readonly></td>
-        </tr>
+            <!-- Physical Zone (liste) -->
+            <td>
+              <select name="pz_{{ s.id }}" class="form-control form-control-sm">
+                <option value="">— sélectionner —</option>
+                {% for pz in physical_zones %}
+                  <option value="{{ pz }}" {% if s.physical_zone_target == pz %}selected{% endif %}>{{ pz }}</option>
+                {% endfor %}
+              </select>
+            </td>
+
+            <!-- Power (liste) -->
+            <td>
+              <select name="pw_{{ s.id }}" class="form-control form-control-sm">
+                <option value="">—</option>
+                {% for w in power_watts %}
+                  <option value="{{ w }}" {% if s.power_watt == w %}selected{% endif %}>{{ w }}</option>
+                {% endfor %}
+              </select>
+            </td>
+
+            <!-- HeartBeat / Soki / SAN (textes) -->
+            <td><input name="hb_{{ s.id }}" class="form-control form-control-sm" value="{{ s.heartbeat or '' }}"></td>
+            <td><input name="soki_{{ s.id }}" class="form-control form-control-sm" value="{{ s.soki or '' }}"></td>
+            <td><input name="san_{{ s.id }}" class="form-control form-control-sm" value="{{ s.san or '' }}"></td>
+          </tr>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <button type="submit" class="btn btn-primary">Générer le JSON (lignes cochées)</button>
-</form>
+        </tbody>
+      </table>
+    </div>
+  </form>
+</div>
 
 <script>
-function toggleAll(box){
-  document.querySelectorAll('.row-check').forEach(cb => cb.checked = box.checked);
-}
-function collectSelection(){
-  const ids = Array.from(document.querySelectorAll('.row-check'))
-    .filter(cb => cb.checked)
-    .map(cb => cb.getAttribute('data-id'));
-  document.getElementById('selected_ids').value = ids.join(',');
-}
+  function toggleAll(source){
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = source.checked);
+  }
+  function collectSelection(){
+    const ids = Array.from(document.querySelectorAll('.row-check:checked'))
+      .map(cb => cb.getAttribute('data-id'));
+    document.getElementById('selected_ids').value = ids.join(',');
+  }
 </script>
-
-{% endblock %}
+</body>
+</html>
