@@ -4,165 +4,184 @@
   <meta charset="UTF-8" />
   <title>Serveurs en stock (warehouse)</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <!-- Bootstrap (si déjà présent via base.css, tu peux laisser quand même) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
   <style>
-    /* même look que l’ancienne page, mais sans troncature */
-    .table thead th { font-size: .85rem; text-transform: uppercase; letter-spacing: .02em; }
-    .table td, .table th { vertical-align: middle; white-space: nowrap; }
-    .pill { background: #f3f5f7; border: 1px solid #e3e7ea; border-radius: .35rem; padding: .25rem .5rem; font-size: .875rem; }
-    .cell-input { width: 140px; }          /* pour PO, vendor, model, etc. */
-    .cell-input.short { width: 90px; }     /* cfi, country, etc. */
-    .cell-input.xs { width: 70px; }        /* nic count, power, etc. */
-    .sticky-actions { position: sticky; top: .5rem; z-index: 10; }
-    .row-check { transform: translateY(1px); }
-    .note-top { color: #6c757d; font-size: .9rem; }
-    .btn-main { background-color: #26a269; border-color: #26a269; }
-    .btn-main:disabled { opacity: .4; cursor: not-allowed; }
+    /* keep the “old look” but make columns readable */
+    .panel      { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:18px; }
+    .toolbar    { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
+    .btn        { border:0; border-radius:6px; padding:8px 14px; cursor:pointer; }
+    .btn-primary{ background:#2ecc71; color:#fff; }
+    .btn-ghost  { background:#f3f5f7; color:#333; }
+    .btn:disabled{ opacity:.5; cursor:not-allowed; }
+    table       { width:100%; border-collapse:separate; border-spacing:0 8px; }
+    thead th    { font-size:12px; letter-spacing:.02em; color:#6b7280; text-transform:uppercase; }
+    tbody td    { background:#f8fafc; border:1px solid #e5e7eb; padding:6px; }
+    tbody tr td:first-child { border-radius:6px 0 0 6px; }
+    tbody tr td:last-child  { border-radius:0 6px 6px 0; }
+    .cell       { display:flex; align-items:center; gap:8px; }
+    .cell input[type="text"] { width: 140px; }             /* show full values */
+    .cell input.readonly     { background:#eef2f7; }
+    .cell .short             { width: 70px; }
+    .cell .xs                { width: 52px; text-align:center; }
+    .cell select             { min-width: 120px; }
+    .row-check               { transform: translateY(2px); }
+    .header-row              { display:flex; align-items:center; gap:10px; justify-content:space-between; }
+    .left-actions            { display:flex; align-items:center; gap:10px; }
+    .right-actions           { display:flex; align-items:center; gap:10px; }
+    .muted                   { color:#6b7280; font-size:12px; }
   </style>
 </head>
 <body>
-  <div class="container py-4">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <h2 class="m-0">Serveurs en stock (warehouse)</h2>
-      <div class="d-flex gap-2 sticky-actions">
-        <button id="generateBtn" form="warehouseForm" type="submit" class="btn btn-main text-white" disabled>
-          Générer le JSON des serveurs cochés
-        </button>
-        <a href="/" class="btn btn-outline-secondary">Accueil</a>
+  <div class="panel">
+    <div class="header-row">
+      <div>
+        <h2 style="margin:0;">Serveurs en stock (warehouse)</h2>
+        <div class="muted">Sélectionnez, modifiez puis générez le JSON</div>
+      </div>
+      <div class="right-actions">
+        <!-- master “Tout cocher” (outside table header on purpose) -->
+        <label class="muted"><input id="check_all" type="checkbox" /> Tout cocher</label>
+        <button id="btn-generate" class="btn btn-primary" disabled>Générer le JSON des serveurs cochés</button>
+        <a href="/" class="btn btn-ghost">Accueil</a>
       </div>
     </div>
 
-    <div class="note-top mb-2">Sélectionnez, modifiez puis générez le JSON</div>
-
-    <form id="warehouseForm" method="post" action="/servers/warehouse" onsubmit="collectSelection(event)">
-      <input type="hidden" name="selected_ids" id="selected_ids" value="">
-      <div class="form-check mb-2">
-        <input id="check_all" class="form-check-input" type="checkbox">
-        <label class="form-check-label" for="check_all">Tout cocher</label>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-sm table-bordered align-middle">
-          <thead class="table-light">
-            <tr>
-              <th style="width:30px;"></th>
-              <th>PO Number</th>
-              <th>Vendor</th>
-              <th>Model</th>
-              <th>CFI Code</th>
-              <th>Serial</th>
-              <th>Country</th>
-              <th>NIC Interface<br>Number</th>
-              <th>AP code<br>authorized</th>
-              <th>Physical Zone</th>
-              <th>Power Watt</th>
-              <th>HeartBeat</th>
-              <th>Soki Name</th>
-              <th>SAN</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for s in servers %}
-            <tr data-id="{{ s.s_id }}">
-              <!-- checkbox ligne -->
-              <td>
-                <input type="checkbox" class="form-check-input row-check" data-id="{{ s.s_id }}">
-              </td>
-
-              <!-- readonly en “pills” comme avant mais avec input large pour ne pas couper -->
-              <td><input class="form-control form-control-sm cell-input" type="text" value="{{ s.po_number }}" readonly></td>
-              <td><input class="form-control form-control-sm cell-input short" type="text" value="{{ s.vendor }}" readonly></td>
-              <td><input class="form-control form-control-sm cell-input short" type="text" value="{{ s.model }}" readonly></td>
-              <td><input class="form-control form-control-sm cell-input xs" type="text" value="{{ s.cfi_code }}" readonly></td>
-              <td><input class="form-control form-control-sm cell-input short" type="text" value="{{ s.serial }}" readonly></td>
-              <td><input class="form-control form-control-sm cell-input xs" type="text" value="{{ s.country }}" readonly></td>
-
-              <!-- éditables -->
-              <td>
-                <input class="form-control form-control-sm cell-input xs" type="number" min="0" step="1"
-                       value="{{ s.nic_count or '' }}" data-field="nic_count">
-              </td>
-
-              <td>
-                <select class="form-select form-select-sm cell-input" data-field="ap_code">
-                  {% for ap in ap_codes %}
-                    <option value="{{ ap }}" {% if s.ap_code == ap %}selected{% endif %}>{{ ap }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-
-              <td>
-                <select class="form-select form-select-sm cell-input" data-field="physical_zone">
-                  {% for z in physical_zones %}
-                    <option value="{{ z }}" {% if s.physical_zone == z %}selected{% endif %}>{{ z }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-
-              <td>
-                <select class="form-select form-select-sm cell-input xs" data-field="power_watt">
-                  {% for w in power_watts %}
-                    <option value="{{ w }}" {% if s.power_watt == w %}selected{% endif %}>{{ w }}</option>
-                  {% endfor %}
-                </select>
-              </td>
-
-              <td><input class="form-control form-control-sm cell-input xs" type="text" value="{{ s.heartbeat or '' }}" data-field="heartbeat"></td>
-              <td><input class="form-control form-control-sm cell-input short" type="text" value="{{ s.soki_name or '' }}" data-field="soki_name"></td>
-              <td><input class="form-control form-control-sm cell-input short" type="text" value="{{ s.san or '' }}" data-field="san"></td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <!-- We’ll fill this hidden field with the JSON payload on submit -->
+    <form id="payloadForm" method="post" action="/servers/warehouse/json">
+      <input type="hidden" name="payload" id="payload" />
     </form>
+
+    <table>
+      <thead>
+        <tr>
+          <!-- no checkbox in header -->
+          <th></th>
+          <th>PO Number</th>
+          <th>Vendor</th>
+          <th>Model</th>
+          <th>CFI Code</th>
+          <th>Serial</th>
+          <th>Country</th>
+          <th>NIC Interface Number</th>
+          <th>AP code authorized</th>
+          <th>Physical Zone</th>
+          <th>Power Watt</th>
+          <th>HeartBeat</th>
+          <th>Soki Name</th>
+          <th>SAN</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in servers %}
+        <tr data-id="{{ s.id }}">
+          <td class="cell">
+            <input type="checkbox" class="row-check" />
+          </td>
+
+          <td class="cell"><input class="readonly" type="text" value="{{ s.po_number }}" readonly /></td>
+          <td class="cell"><input class="readonly short" type="text" value="{{ s.vendor }}" readonly /></td>
+          <td class="cell"><input class="readonly short" type="text" value="{{ s.model }}" readonly /></td>
+          <td class="cell"><input class="readonly short" type="text" value="{{ s.cfi_code }}" readonly /></td>
+          <td class="cell"><input class="readonly short" type="text" value="{{ s.serial }}" readonly /></td>
+          <td class="cell"><input class="readonly xs" type="text" value="{{ s.country }}" readonly /></td>
+
+          <td class="cell">
+            <input type="number" class="xs nic" min="0" step="1" value="{{ s.nic_count }}" />
+          </td>
+
+          <td class="cell">
+            <select class="ap">
+              <option value=""></option>
+              {% for ap in ap_codes %}
+                <option value="{{ ap }}" {% if ap==s.ap_code %}selected{% endif %}>{{ ap }}</option>
+              {% endfor %}
+            </select>
+          </td>
+
+          <td class="cell">
+            <select class="pz">
+              <option value=""></option>
+              {% for pz in physical_zones %}
+                <option value="{{ pz }}" {% if pz==s.physical_zone %}selected{% endif %}>{{ pz }}</option>
+              {% endfor %}
+            </select>
+          </td>
+
+          <td class="cell">
+            <select class="pw xs">
+              <option value=""></option>
+              {% for w in power_watts %}
+                <option value="{{ w }}" {% if w==s.power_watt %}selected{% endif %}>{{ w }}</option>
+              {% endfor %}
+            </select>
+          </td>
+
+          <td class="cell"><input type="text" class="hb short" value="{{ s.heartbeat or '' }}" /></td>
+          <td class="cell"><input type="text" class="soki short" value="{{ s.soki_name or '' }}" /></td>
+          <td class="cell"><input type="text" class="san short" value="{{ s.san or '' }}" /></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 
   <script>
-    // éléments
-    const checkAll   = document.getElementById('check_all');
-    const generate   = document.getElementById('generateBtn');
-    const hiddenSel  = document.getElementById('selected_ids');
+    const checkAll = document.getElementById('check_all');
+    const generateBtn = document.getElementById('btn-generate');
+    const form = document.getElementById('payloadForm');
+    const payloadInput = document.getElementById('payload');
 
-    // toggle "tout cocher"
+    function selectedRows() {
+      return Array.from(document.querySelectorAll('tbody .row-check:checked'))
+                  .map(cb => cb.closest('tr'));
+    }
+
+    function refreshButton() {
+      generateBtn.disabled = selectedRows().length === 0;
+    }
+
+    // master checkbox
     checkAll?.addEventListener('change', () => {
-      document.querySelectorAll('.row-check').forEach(cb => {
-        cb.checked = checkAll.checked;
-      });
-      updateButton();
+      document.querySelectorAll('tbody .row-check').forEach(cb => { cb.checked = checkAll.checked; });
+      refreshButton();
     });
 
-    // activer/désactiver le bouton selon sélection
-    function updateButton() {
-      const anyChecked = document.querySelectorAll('.row-check:checked').length > 0;
-      generate.disabled = !anyChecked;
-    }
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('row-check')) updateButton();
+    // per-row checkboxes
+    document.querySelectorAll('tbody .row-check').forEach(cb => {
+      cb.addEventListener('change', refreshButton);
     });
-    updateButton();
 
-    // collecte des valeurs des lignes cochées
-    function collectSelection(ev) {
-      const rows = [];
-      document.querySelectorAll('tr[data-id]').forEach(tr => {
-        const cb = tr.querySelector('.row-check');
-        if (!cb || !cb.checked) return;
+    // build payload then POST
+    generateBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const rows = selectedRows();
+      if (!rows.length) return;
 
-        const row = { id: tr.dataset.id };
-        tr.querySelectorAll('[data-field]').forEach(el => {
-          const key = el.getAttribute('data-field');
-          const val = (el.tagName === 'SELECT') ? el.value : el.value.trim();
-          row[key] = val;
-        });
-        rows.push(row);
+      const out = rows.map(tr => {
+        const id = tr.getAttribute('data-id');
+        return {
+          id: Number(id),
+          po_number:   tr.querySelector('td:nth-child(2) input').value,
+          vendor:      tr.querySelector('td:nth-child(3) input').value,
+          model:       tr.querySelector('td:nth-child(4) input').value,
+          cfi_code:    tr.querySelector('td:nth-child(5) input').value,
+          serial:      tr.querySelector('td:nth-child(6) input').value,
+          country:     tr.querySelector('td:nth-child(7) input').value,
+          nic_count:   Number(tr.querySelector('.nic').value || 0),
+          ap_code:     tr.querySelector('.ap').value || '',
+          physical_zone: tr.querySelector('.pz').value || '',
+          power_watt:  tr.querySelector('.pw').value ? Number(tr.querySelector('.pw').value) : null,
+          heartbeat:   tr.querySelector('.hb').value || '',
+          soki_name:   tr.querySelector('.soki').value || '',
+          san:         tr.querySelector('.san').value || ''
+        };
       });
 
-      // passe la sélection au backend (JSON string dans un hidden)
-      hiddenSel.value = JSON.stringify(rows);
-      // le form se soumet normalement vers POST /servers/warehouse
-    }
+      payloadInput.value = JSON.stringify(out);
+      form.submit();
+    });
+
+    // initial state
+    refreshButton();
   </script>
 </body>
 </html>
