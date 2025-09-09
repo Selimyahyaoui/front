@@ -13,19 +13,16 @@
     }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
-
     .hero{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
     .hero img{height:28px}
     .hero h1{font-size:18px;margin:0}
     .hero .pill{margin-left:auto;font-size:12px;color:var(--muted)}
-
     .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
     .toolbar .spacer{flex:1}
     .btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}
     .btn:disabled{opacity:.55;cursor:not-allowed}
     .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
     .hint{color:var(--muted);font-size:12px}
-
     .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
     .tbl{width:100%;border-collapse:separate;border-spacing:0}
     .tbl thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted);padding:10px 10px;z-index:1;white-space:nowrap}
@@ -33,27 +30,19 @@
     .tbl tbody tr:nth-child(odd){background:#fcfcfe}
     .tbl tbody tr:hover{background:#f5f7ff}
     .tbl .col-check{width:42px;text-align:center}
-
-    /* field widths so values aren’t cut */
+    /* widths so values aren’t cut */
     .w-po{min-width:140px} .w-vendor{min-width:95px} .w-model{min-width:95px}
     .w-cfi{min-width:110px} .w-serial{min-width:150px} .w-country{min-width:90px}
     .w-nic{min-width:110px} .w-ap{min-width:130px} .w-pz{min-width:140px}
     .w-watt{min-width:110px} .w-heart{min-width:110px} .w-soki{min-width:140px} .w-san{min-width:110px}
-
     .tbl input,.tbl select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;font:inherit;height:32px}
     .tbl input[readonly]{background:#f7f7f9;color:#555}
-
     .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
     .alert.success{background:var(--success-bg);color:var(--success-ink);border-color:#ccebd6}
     .alert.error{background:var(--danger-bg);color:var(--danger-ink);border-color:#f5c2c2}
   </style>
 
   <script>
-    // toggle all via toolbar checkbox
-    function toggleAll(master){
-      document.querySelectorAll(".row-check").forEach(cb => cb.checked = master.checked);
-      updateGenerateState();
-    }
     function toNumberOrNull(v){
       if(v === null || v === undefined) return null;
       const t = String(v).trim();
@@ -61,15 +50,26 @@
       const n = Number(t);
       return Number.isFinite(n) ? n : null;
     }
+
     function updateGenerateState(){
-      const any = Array.from(document.querySelectorAll(".row-check")).some(cb => cb.checked);
-      document.getElementById("btn-generate").disabled = !any;
+      const checkedCount = document.querySelectorAll("input.row-check:checked").length;
+      document.getElementById("btn-generate").disabled = checkedCount === 0;
     }
+
+    function toggleAll(master){
+      document.querySelectorAll("input.row-check").forEach(cb => {
+        cb.checked = master.checked;
+        // force change event so state updates even if value didn’t “change”
+        cb.dispatchEvent(new Event("change", {bubbles:true}));
+      });
+      updateGenerateState();
+    }
+
     function collectAndSubmit(){
       const rows = [];
       document.querySelectorAll("tr.data-row").forEach(tr=>{
-        const checked = tr.querySelector(".row-check").checked;
-        if(!checked) return;
+        const cb = tr.querySelector("input.row-check");
+        if(!cb || !cb.checked) return;
 
         const pick = sel => (tr.querySelector(sel)?.value ?? "").trim();
 
@@ -91,14 +91,18 @@
         });
       });
 
-      const payload = { generated_at: new Date().toISOString(), servers: rows };
-      document.getElementById("json_payload").value = JSON.stringify(payload);
-      return true; // submit
+      document.getElementById("json_payload").value = JSON.stringify({
+        generated_at: new Date().toISOString(),
+        servers: rows
+      });
+      return true; // allow form submit
     }
 
+    // Global listener: any checkbox change updates the button
     document.addEventListener("change", e=>{
-      if(e.target.classList.contains("row-check")) updateGenerateState();
+      if(e.target.matches("input[type='checkbox']")) updateGenerateState();
     });
+
     document.addEventListener("DOMContentLoaded", updateGenerateState);
   </script>
 </head>
@@ -147,7 +151,9 @@
             <tbody>
               {% for s in servers %}
               <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
-                <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
+                <td class="col-check">
+                  <input type="checkbox" class="row-check" aria-label="Sélectionner">
+                </td>
 
                 <td class="w-po"><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
                 <td class="w-vendor"><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
