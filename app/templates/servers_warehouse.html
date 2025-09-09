@@ -3,152 +3,233 @@
 <head>
   <meta charset="UTF-8" />
   <title>Serveurs en stock (warehouse)</title>
+  <!-- keep your global stylesheet if you have one -->
   <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    .table-responsive{overflow:auto}
-    .table{width:100%;border-collapse:collapse}
-    .table th,.table td{border:1px solid #ddd;padding:6px;white-space:nowrap}
-    .table thead th{background:#f5f5f5;position:sticky;top:0}
-    .alert{margin:10px 0;padding:10px;border-radius:4px}
-    .alert-success{background:#e7f6ec;border:1px solid #b8e0c7}
-    .alert-danger{background:#fdeaea;border:1px solid #f1b4b4}
-    .actions{display:flex;gap:10px;align-items:center;margin:10px 0}
-    .btn{padding:6px 10px;border:1px solid #0c6;border-radius:4px;background:#0c6;color:#fff;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
+    :root{
+      --brand:#14823b;
+      --brand-ink:#0f5f2c;
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --bg:#f7f7f9;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --success-bg:#e7f6ea;
+      --success-ink:#116d37;
+      --danger-bg:#fdeaea;
+      --danger-ink:#8a1d1d;
+    }
+
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px;}
+
+    /* Header */
+    .hero{
+      display:flex;align-items:center;gap:14px;background:var(--card);
+      border:1px solid var(--border); border-radius:10px; padding:14px 16px;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
+      margin-bottom:14px;
+    }
+    .hero img{height:28px}
+    .hero h1{font-size:18px;margin:0}
+    .hero .pill{margin-left:auto;font-size:12px;color:var(--muted)}
+
+    /* Toolbar */
+    .toolbar{
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+      background:var(--card);border:1px solid var(--border);border-radius:10px;
+      padding:12px 14px;margin-bottom:14px
+    }
+    .toolbar .spacer{flex:1}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;
+      background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;
+      box-shadow:0 1px 2px rgba(0,0,0,.06)
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
+    .hint{color:var(--muted);font-size:12px}
+
+    /* Card table wrapper */
+    .card{
+      background:var(--card);border:1px solid var(--border);border-radius:10px;
+      overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)
+    }
+
+    /* Table */
+    .tbl{width:100%;border-collapse:separate;border-spacing:0}
+    .tbl thead th{
+      position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;
+      color:var(--muted);padding:10px 10px;z-index:1
+    }
+    .tbl td{border-bottom:1px solid var(--border);padding:10px}
+    .tbl tbody tr:nth-child(odd){background:#fcfcfe}
+    .tbl tbody tr:hover{background:#f5f7ff}
+    .tbl .col-check{width:42px;text-align:center}
+    .tbl .ctrl{width:160px}
+    .tbl input,.tbl select{
+      width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;
+      padding:6px 8px;background:#fff;font:inherit
+    }
+    .tbl input[readonly]{background:#f7f7f9;color:#555}
+
+    /* Alerts */
+    .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
+    .alert.success{background:var(--success-bg);color:var(--success-ink);border-color:#ccebd6}
+    .alert.error{background:var(--danger-bg);color:var(--danger-ink);border-color:#f5c2c2}
+
+    /* Responsive */
+    @media (max-width: 900px){
+      .tbl .ctrl{width:120px}
+    }
+    @media (max-width: 720px){
+      .tbl thead th{font-size:11px}
+      .tbl .ctrl{width:110px}
+    }
   </style>
+  <script>
+    function toggleAll(master){
+      document.querySelectorAll(".row-check").forEach(cb => cb.checked = master.checked);
+      updateGenerateState();
+    }
+    function updateGenerateState(){
+      const anyChecked = [...document.querySelectorAll(".row-check")].some(cb => cb.checked);
+      document.getElementById("btn-generate").disabled = !anyChecked;
+    }
+    function collectAndSubmit(form){
+      const rows = [];
+      document.querySelectorAll("tr.data-row").forEach(tr=>{
+        if(!tr.querySelector(".row-check").checked) return;
+        const get = sel => tr.querySelector(sel)?.value ?? "";
+        rows.push({
+          id: Number(tr.dataset.id),
+          po_number: get("input[name='po_number']"),
+          vendor: get("input[name='vendor']"),
+          model: get("input[name='model']"),
+          cfi_code: get("input[name='cfi_code']"),
+          serial: get("input[name='serial']"),
+          country: get("input[name='country']"),
+          nic_count: get("input[name='nic_count']") ? Number(get(\"input[name='nic_count']\")) : null,
+          ap_code_authorized: get("select[name='ap_code_authorized']"),
+          physical_zone: get("select[name='physical_zone']"),
+          power_watt: get("select[name='power_watt']") ? Number(get(\"select[name='power_watt']\")) : null,
+          heartbeat: get("input[name='heartbeat']"),
+          soki_name: get("input[name='soki_name']"),
+          san: get("input[name='san']")
+        });
+      });
+      document.getElementById("json_payload").value = JSON.stringify({
+        generated_at: new Date().toISOString(),
+        servers: rows
+      });
+      return true;
+    }
+    document.addEventListener("change", e=>{
+      if(e.target.classList.contains("row-check")) updateGenerateState();
+    });
+    document.addEventListener("DOMContentLoaded", updateGenerateState);
+  </script>
 </head>
 <body>
-  <h2>Serveurs en stock (warehouse)</h2>
-
-  {% if message_ok %}
-    <div class="alert alert-success">{{ message_ok }}</div>
-  {% endif %}
-  {% if message_error %}
-    <div class="alert alert-danger">{{ message_error }}</div>
-  {% endif %}
-
-  <form method="post" action="/servers/warehouse" onsubmit="return beforeSubmit()">
-    <input type="hidden" name="selected_ids" id="selected_ids" value="" />
-    <input type="hidden" name="data_payload" id="data_payload" value="[]" />
-
-    <div class="actions">
-      <label><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
-      <button class="btn" type="submit">Générer le JSON des serveurs cochés</button>
+  <div class="shell">
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP">
+      <h1>Serveurs en stock (warehouse)</h1>
+      <div class="pill hint">Sélectionnez, modifiez puis générez le JSON</div>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th><input type="checkbox" id="check_all2" onclick="toggleAll(this)"></th>
-            <th>PO Number</th>
-            <th>Vendor</th>
-            <th>Model</th>
-            <th>CFI Code</th>
-            <th>Serial</th>
-            <th>Country</th>
-            <th>NIC Interface Number</th>
-            <th>AP code authorized</th>
-            <th>Physical Zone</th>
-            <th>Power Watt</th>
-            <th>HeartBeat</th>
-            <th>Soki Name</th>
-            <th>SAN</th>
-          </tr>
-        </thead>
-        <tbody id="tbl">
-          {% for s in servers %}
-          <tr data-id="{{ s.id }}">
-            <td><input type="checkbox" class="row-check"></td>
-            <td>{{ s.po_number }}</td>
-            <td>{{ s.vendor }}</td>
-            <td>{{ s.model }}</td>
-            <td>{{ s.cfi_code }}</td>
-            <td>{{ s.serial }}</td>
-            <td>{{ s.country }}</td>
-            <td><input type="number" min="0" value="{{ s.nic_count }}" class="nic"></td>
+    {% if message_ok %}
+      <div class="alert success">{{ message_ok }}</div>
+    {% endif %}
+    {% if message_error %}
+      <div class="alert error">{{ message_error }}</div>
+    {% endif %}
 
-            <td>
-              <select class="apcode">
-                <option value="">— Sélectionner —</option>
-                {% for ap in ap_codes %}
-                  <option value="{{ ap }}" {% if ap == s.ap_code_authorized %}selected{% endif %}>{{ ap }}</option>
-                {% endfor %}
-              </select>
-            </td>
+    <form method="post" action="/servers/warehouse" onsubmit="return collectAndSubmit(this)">
+      <input type="hidden" id="json_payload" name="json_payload" value="" />
 
-            <td>
-              <select class="pzone">
-                <option value="">— Sélectionner —</option>
-                {% for z in physical_zones %}
-                  <option value="{{ z }}">{{ z }}</option>
-                {% endfor %}
-              </select>
-            </td>
+      <div class="toolbar">
+        <label class="hint"><input type="checkbox" id="check_all" onclick="toggleAll(this)"> Tout cocher</label>
+        <div class="spacer"></div>
+        <button type="submit" id="btn-generate" class="btn" disabled>Générer le JSON des serveurs cochés</button>
+        <a class="btn btn--ghost" href="/"><span>Accueil</span></a>
+      </div>
 
-            <td>
-              <select class="pwatt">
-                <option value="">—</option>
-                <option>150</option><option>200</option><option>250</option><option>300</option>
-                <option>350</option><option>400</option><option>450</option><option>500</option>
-                <option>550</option><option>600</option><option>650</option><option>700</option>
-                <option>750</option><option>800</option><option>850</option><option>900</option>
-                <option>950</option>
-              </select>
-            </td>
+      <div class="card">
+        <div style="overflow:auto; max-height:70vh">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" onclick="toggleAll(this)" aria-label="Tout cocher"></th>
+                <th>PO Number</th>
+                <th>Vendor</th>
+                <th>Model</th>
+                <th>CFI Code</th>
+                <th>Serial</th>
+                <th>Country</th>
+                <th>NIC Interface Number</th>
+                <th>AP code authorized</th>
+                <th>Physical Zone</th>
+                <th>Power Watt</th>
+                <th>HeartBeat</th>
+                <th>Soki Name</th>
+                <th>SAN</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in servers %}
+              <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
+                <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
 
-            <td style="text-align:center"><input type="checkbox" class="heartbeat"></td>
-            <td><input type="text" class="soki" value=""></td>
-            <td style="text-align:center"><input type="checkbox" class="san"></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </form>
+                <td><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
+                <td><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
+                <td><input name="model" value="{{ s.t_server_sts_model or '' }}" readonly></td>
 
-<script>
-function toggleAll(box){
-  const checks = document.querySelectorAll('.row-check');
-  checks.forEach(c => c.checked = box.checked);
-}
+                <td class="ctrl"><input name="cfi_code" value="{{ s.t_server_sts_cfi_code or '' }}"></td>
+                <td><input name="serial" value="{{ s.t_server_sts_serial or '' }}" readonly></td>
+                <td><input name="country" value="{{ s.t_server_sts_country or '' }}" readonly></td>
 
-function beforeSubmit(){
-  const rows = Array.from(document.querySelectorAll('#tbl tr'));
-  const selected = [];
-  const payload = [];
-  rows.forEach(tr => {
-    const id = tr.getAttribute('data-id');
-    const checked = tr.querySelector('.row-check').checked;
-    const nic    = tr.querySelector('.nic').value || null;
-    const ap     = tr.querySelector('.apcode').value || null;
-    const pz     = tr.querySelector('.pzone').value || null;
-    const pw     = tr.querySelector('.pwatt').value || null;
-    const hb     = tr.querySelector('.heartbeat').checked || false;
-    const soki   = tr.querySelector('.soki').value || '';
-    const san    = tr.querySelector('.san').checked || false;
+                <td class="ctrl"><input name="nic_count" value="{{ s.t_server_sts_nic_count or '' }}"></td>
 
-    const base = {
-      id,
-      nic_count: nic ? parseInt(nic) : 0,
-      ap_code_authorized: ap || "",
-      physical_zone: pz || "",
-      power_watt: pw ? parseInt(pw) : null,
-      heartbeat: hb,
-      soki_name: soki || "",
-      san: san
-    };
+                <td class="ctrl">
+                  <select name="ap_code_authorized">
+                    <option value=""></option>
+                    {% for ap in ap_codes %}
+                      <option value="{{ ap }}" {% if s.t_server_sts_t_ap_code_authorized_ap_code == ap %}selected{% endif %}>{{ ap }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
 
-    if (checked) selected.push(id);
-    payload.push(base);
-  });
+                <td class="ctrl">
+                  <select name="physical_zone">
+                    <option value=""></option>
+                    {% for z in physical_zones %}
+                      <option value="{{ z }}">{{ z }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
 
-  document.getElementById('selected_ids').value = selected.join(',');
-  document.getElementById('data_payload').value = JSON.stringify(
-    payload.filter(p => selected.includes(p.id))
-  );
-  return true;
-}
-</script>
+                <td class="ctrl">
+                  <select name="power_watt">
+                    <option value=""></option>
+                    {% for w in power_watts %}
+                      <option value="{{ w }}">{{ w }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+
+                <td class="ctrl"><input name="heartbeat" value=""></td>
+                <td class="ctrl"><input name="soki_name" value=""></td>
+                <td class="ctrl"><input name="san" value=""></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </form>
+  </div>
 </body>
 </html>
