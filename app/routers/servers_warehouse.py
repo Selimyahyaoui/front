@@ -9,39 +9,44 @@ import os, json
 from app.db.database import get_connection
 
 router = APIRouter()
+templates = Jinja2Templates(directory="app/templates")
 
-# chemin templates absolu pour éviter les soucis d'import
-TEMPLATES_DIR = str(Path(__file__).resolve().parents[1] / "templates")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
-
-# sortie JSON (sur PVC monté, ex: /app/uploads/servers_selection.json)
+# Où écrire le JSON final (PV monté sur /app/uploads)
 SERVERS_JSON_PATH = os.getenv("SERVERS_JSON_PATH", "/app/uploads/servers_selection.json")
+# Liste fixe (spécifications)
 POWER_WATTS = [150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 750, 800, 850, 900, 950]
+
+
+# --- utils DB ---------------------------------------------------------------
 
 def _safe_fetchall(sql: str, params: Optional[Tuple] = None) -> List[Tuple]:
     with get_connection() as conn:
         conn.autocommit = False
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, params or ())
-                rows = cur.fetchall()
-            conn.commit()
-            return rows
-        except Exception:
-            conn.rollback()
-            raise
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+            rows = cur.fetchall()
+        conn.commit()
+        return rows
+
 
 def _ensure_parent_writable(p: Path) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
-    probe = p.parent / ".write_test"
+    # test d'écriture
+    probe = p.parent / "_write_test"
     try:
         with probe.open("w", encoding="utf-8") as fh:
             fh.write("ok")
     finally:
-        try: probe.unlink()
-        except Exception: pass
+        try:
+            probe.unlink()
+        except Exception:
+            pass
+
+
+# --- queries pour remplir les listes ---------------------------------------
 
 def fetch_ap_codes() -> List[str]:
+    # Distinct des codes AP existants côté serveurs (non null)
     rows = _safe_fetchall("""
         SELECT DISTINCT t_server_sts_t_ap_code_authorized_ap_code
         FROM supchain.t_server_sts
@@ -50,56 +55,55 @@ def fetch_ap_codes() -> List[str]:
     """)
     return [r[0] for r in rows if r[0]]
 
+
 def fetch_physical_zones() -> List[str]:
-    # Filtre de disponibilité retiré pour compat DB (on affiche tout)
+    # SEULEMENT les zones disponibles
     rows = _safe_fetchall("""
         SELECT DISTINCT t_physical_zone_target
         FROM supchain.t_physical_zone
+        WHERE t_physical_zone_date_availability = 'YES'
         ORDER BY 1
     """)
     return [r[0] for r in rows if r[0]]
 
+
 def fetch_warehouse_servers() -> List[Dict[str, Any]]:
+    # Serveurs en stock (state_string = 'warehouse'), avec pays du site si dispo
     rows = _safe_fetchall("""
         SELECT
-          s.t_server_sts_id,
-          s.t_server_sts_po_number,
-          s.t_server_sts_vendor,
-          s.t_server_sts_model,
-          s.t_server_sts_cfi_code,
-          s.t_server_sts_country,
-          s.t_server_sts_t_ap_code_authorized_ap_code,
-          s.t_server_sts_nic_count,
-          s.t_server_sts_power_watt,
-          s.t_server_sts_heartbeat,
-          s.t_server_sts_soki,
-          s.t_server_sts_san,
-          s.t_server_sts_state_string
+            s.t_server_sts_id,
+            s.t_server_sts_po_number,
+            s.t_server_sts_vendor,
+            s.t_server_sts_model,
+            s.t_server_sts_serial,
+            s.t_server_sts_cfi_code,
+            COALESCE(cty.t_site_country, '') AS country,
+            s.t_server_sts_t_ap_code_authorized_ap_code AS ap_code,
+            s.t_server_sts_nic_count,
+            s.t_server_sts_state_string
         FROM supchain.t_server_sts s
+        LEFT JOIN supchain.t_site cty
+               ON cty.t_site_id = s.t_server_sts_t_site_id
         WHERE s.t_server_sts_state_string = 'warehouse'
         ORDER BY s.t_server_sts_id ASC
     """)
-    out: List[Dict[str, Any]] = []
+    out = []
     for r in rows:
         out.append({
             "id": r[0],
-            "po_number": r[1],
-            "vendor": r[2],
-            "model": r[3],
-            "cfi_code": r[4],
-            "country": r[5],
-            "ap_code_authorized": r[6],
-            "nic_count": r[7],
-            "power_watt": r[8],
-            "heartbeat": r[9],
-            "soki": r[10],
-            "san": r[11],
-            "state": r[12],
-            # Dans t_server_sts il n’y a pas toujours physical_zone_target;
-            # si vous l’ajoutez plus tard, mappez-le ici.
-            "physical_zone_target": None,
+            "po_number": r[1] or "",
+            "vendor": r[2] or "",
+            "model": r[3] or "",
+            "serial": r[4] or "",
+            "cfi_code": r[5] or "",
+            "country": r[6] or "",
+            "ap_code": r[7] or "",
+            "nic_count": r[8] or 0,
         })
     return out
+
+
+# --- routes ----------------------------------------------------------------
 
 @router.get("/servers/warehouse", response_class=HTMLResponse)
 async def page_warehouse(request: Request):
@@ -114,59 +118,81 @@ async def page_warehouse(request: Request):
             "ap_codes": ap_codes,
             "physical_zones": physical_zones,
             "power_watts": POWER_WATTS,
-        }
+            "message_ok": None,
+            "message_error": None,
+        },
     )
+
 
 @router.post("/servers/warehouse", response_class=HTMLResponse)
-async def generate_json(
+async def post_warehouse(
     request: Request,
-    selected_ids: str = Form("")
+    selected_ids: str = Form(""),
+    # les champs par ligne arrivent sous forme xxx_<id>; on traite dans le code
 ):
-    # Récupère la liste complète pour croiser les champs (simple et robuste)
-    servers = { str(s["id"]): s for s in fetch_warehouse_servers() }
+    try:
+        form = await request.form()
+        ids = [x for x in (selected_ids or "").split(",") if x.strip()]
+        results: List[Dict[str, Any]] = []
 
-    chosen = [sid for sid in (selected_ids.split(",") if selected_ids else []) if sid in servers]
-    data: List[Dict[str, Any]] = []
+        for sid in ids:
+            def gv(name: str, default=""):
+                return form.get(f"{name}_{sid}", default)
 
-    # Lit tous les champs éditables envoyés par ligne
-    form = await request.form()
-    for sid in chosen:
-        s = servers[sid]
-        row = {
-            "id": int(sid),
-            "poNumber": s["po_number"],
-            "vendor": s["vendor"],
-            "model": s["model"],
-            "cfiCode": s["cfi_code"],
-            "country": s["country"],
+            # Reconstruction de la ligne éditée
+            item = {
+                "id": int(sid),
+                "po_number": gv("po_number"),
+                "vendor": gv("vendor"),
+                "model": gv("model"),
+                "cfi_code": gv("cfi_code"),
+                "serial": gv("serial"),
+                "country": gv("country"),
+                "nic_count": int(gv("nic_count", "0") or 0),
+                "ap_code_authorized": gv("ap_code"),
+                "physical_zone_target": gv("physical_zone"),
+                "power_watt": int(gv("power_watt", "0") or 0),
+                "heartbeat": gv("heartbeat", "") == "on",
+                "soki_name": gv("soki_name"),
+                "san": gv("san", "") == "on",
+            }
+            results.append(item)
 
-            "nicCount": int(form.get(f"nic_{sid}", s["nic_count"] or 0) or 0),
-            "apCodeAuthorized": form.get(f"ap_{sid}") or s["ap_code_authorized"],
-            "physicalZoneTarget": form.get(f"pz_{sid}") or s.get("physical_zone_target"),
-            "powerWatt": form.get(f"pw_{sid}") or s["power_watt"],
-            "heartBeat": form.get(f"hb_{sid}") or s["heartbeat"],
-            "sokiName": form.get(f"soki_{sid}") or s["soki"],
-            "san": form.get(f"san_{sid}") or s["san"],
-        }
-        data.append(row)
+        # Ecriture JSON
+        out_path = Path(SERVERS_JSON_PATH)
+        _ensure_parent_writable(out_path)
+        with out_path.open("w", encoding="utf-8") as fh:
+            json.dump(results, fh, ensure_ascii=False, indent=2)
 
-    # Écriture JSON sur le PVC
-    out = Path(SERVERS_JSON_PATH)
-    _ensure_parent_writable(out)
-    out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    msg = f"JSON généré ({len(data)} serveurs) → {SERVERS_JSON_PATH}"
-    ap_codes = fetch_ap_codes()
-    physical_zones = fetch_physical_zones()
-    # On ré-affiche la page avec message de succès
-    return templates.TemplateResponse(
-        "servers_warehouse.html",
-        {
-            "request": request,
-            "message_ok": msg,
-            "servers": fetch_warehouse_servers(),
-            "ap_codes": ap_codes,
-            "physical_zones": physical_zones,
-            "power_watts": POWER_WATTS,
-        }
-    )
+        msg_ok = f"JSON généré ({len(results)} serveur(s)) → {out_path}"
+        servers = fetch_warehouse_servers()
+        ap_codes = fetch_ap_codes()
+        physical_zones = fetch_physical_zones()
+        return templates.TemplateResponse(
+            "servers_warehouse.html",
+            {
+                "request": request,
+                "servers": servers,
+                "ap_codes": ap_codes,
+                "physical_zones": physical_zones,
+                "power_watts": POWER_WATTS,
+                "message_ok": msg_ok,
+                "message_error": None,
+            },
+        )
+    except Exception as e:
+        servers = fetch_warehouse_servers()
+        ap_codes = fetch_ap_codes()
+        physical_zones = fetch_physical_zones()
+        return templates.TemplateResponse(
+            "servers_warehouse.html",
+            {
+                "request": request,
+                "servers": servers,
+                "ap_codes": ap_codes,
+                "physical_zones": physical_zones,
+                "power_watts": POWER_WATTS,
+                "message_ok": None,
+                "message_error": f"Erreur : {e}",
+            },
+        )
