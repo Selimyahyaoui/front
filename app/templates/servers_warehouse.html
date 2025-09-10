@@ -7,100 +7,110 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
-      --brand:#14823b; --brand-ink:#0f5f2c; --ink:#1f2937; --muted:#6b7280;
-      --bg:#f7f7f9; --card:#fff; --border:#e5e7eb;
-      --success-bg:#e7f6ea; --success-ink:#116d37; --danger-bg:#fdeaea; --danger-ink:#8a1d1d;
+      --brand:#14823b;
+      --brand-ink:#0f5f2c;
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --bg:#f7f7f9;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --success-bg:#e7f6ea;
+      --success-ink:#116d37;
+      --danger-bg:#fdeaea;
+      --danger-ink:#8a1d1d;
     }
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
-    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
-    .hero{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px;}
+
+    .hero{
+      display:flex;align-items:center;gap:14px;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+      box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px;
+    }
     .hero img{height:28px}
     .hero h1{font-size:18px;margin:0}
     .hero .pill{margin-left:auto;font-size:12px;color:var(--muted)}
-    .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+
+    .toolbar{
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+      background:var(--card);border:1px solid var(--border);border-radius:10px;
+      padding:12px 14px;margin-bottom:14px
+    }
     .toolbar .spacer{flex:1}
-    .btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;
+      background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;cursor:pointer;
+      box-shadow:0 1px 2px rgba(0,0,0,.06)
+    }
     .btn:disabled{opacity:.55;cursor:not-allowed}
     .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
     .hint{color:var(--muted);font-size:12px}
+
     .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .tbl{width:100%;border-collapse:separate;border-spacing:0}
-    .tbl thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:var(--muted);padding:10px 10px;z-index:1;white-space:nowrap}
-    .tbl td{border-bottom:1px solid var(--border);padding:10px;vertical-align:middle}
+
+    .tbl{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+    .tbl thead th{
+      position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;
+      color:var(--muted);padding:10px 10px;z-index:1
+    }
+    .tbl td{border-bottom:1px solid var(--border);padding:10px}
     .tbl tbody tr:nth-child(odd){background:#fcfcfe}
     .tbl tbody tr:hover{background:#f5f7ff}
     .tbl .col-check{width:42px;text-align:center}
-    /* prevent clipping of values */
-    .w-po{min-width:140px} .w-vendor{min-width:95px} .w-model{min-width:95px}
-    .w-cfi{min-width:110px} .w-serial{min-width:150px} .w-country{min-width:90px}
-    .w-nic{min-width:110px} .w-ap{min-width:130px} .w-pz{min-width:140px}
-    .w-watt{min-width:110px} .w-heart{min-width:110px} .w-soki{min-width:140px} .w-san{min-width:110px}
-    .tbl input,.tbl select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;font:inherit;height:32px}
+    .tbl .ctrl{width:160px}
+    .tbl input,.tbl select{
+      width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;
+      padding:6px 8px;background:#fff;font:inherit;min-width:0;
+    }
     .tbl input[readonly]{background:#f7f7f9;color:#555}
+
     .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
     .alert.success{background:var(--success-bg);color:var(--success-ink);border-color:#ccebd6}
     .alert.error{background:var(--danger-bg);color:var(--danger-ink);border-color:#f5c2c2}
+
+    @media (max-width: 900px){ .tbl .ctrl{width:120px} }
+    @media (max-width: 720px){ .tbl thead th{font-size:11px} .tbl .ctrl{width:110px} }
   </style>
-
   <script>
-    function toNumberOrNull(v){
-      if(v === null || v === undefined) return null;
-      const t = String(v).trim();
-      if(t === "") return null;
-      const n = Number(t);
-      return Number.isFinite(n) ? n : null;
-    }
-
-    function updateGenerateState(){
-      const checkedCount = document.querySelectorAll("input.row-check:checked").length;
-      const btn = document.getElementById("btn-generate");
-      if (btn) btn.disabled = checkedCount === 0;
-    }
-
     function toggleAll(master){
-      document.querySelectorAll("input.row-check").forEach(cb => {
-        cb.checked = master.checked;
-        cb.dispatchEvent(new Event("change", {bubbles:true}));
-      });
+      document.querySelectorAll(".row-check").forEach(cb => cb.checked = master.checked);
       updateGenerateState();
     }
-
-    function collectAndSubmit(){
+    function updateGenerateState(){
+      const anyChecked = [...document.querySelectorAll(".row-check")].some(cb => cb.checked);
+      document.getElementById("btn-generate").disabled = !anyChecked;
+    }
+    function collectAndSubmit(form){
       const rows = [];
       document.querySelectorAll("tr.data-row").forEach(tr=>{
-        const cb = tr.querySelector("input.row-check");
-        if(!cb || !cb.checked) return;
-
-        const pick = sel => (tr.querySelector(sel)?.value ?? "").trim();
-
+        if(!tr.querySelector(".row-check").checked) return;
+        const get = sel => tr.querySelector(sel)?.value ?? "";
         rows.push({
           id: Number(tr.dataset.id),
-          po_number: pick("input[name='po_number']") || null,
-          vendor:    pick("input[name='vendor']")    || null,
-          model:     pick("input[name='model']")     || null,
-          cfi_code:  pick("input[name='cfi_code']")  || null,
-          serial:    pick("input[name='serial']")    || null,
-          country:   pick("input[name='country']")   || null,
-          nic_count: toNumberOrNull(pick("input[name='nic_count']")),
-          ap_code_authorized: pick("select[name='ap_code_authorized']") || null,
-          physical_zone:      pick("select[name='physical_zone']")      || null,
-          power_watt:         toNumberOrNull(pick("select[name='power_watt']")),
-          heartbeat: pick("input[name='heartbeat']") || null,
-          soki_name: pick("input[name='soki_name']") || null,
-          san:       pick("input[name='san']")       || null
+          po_number: get("input[name='po_number']"),
+          vendor: get("input[name='vendor']"),
+          model: get("input[name='model']"),
+          cfi_code: get("input[name='cfi_code']"),
+          serial: get("input[name='serial']"),
+          country: get("input[name='country']"),
+          nic_count: get("input[name='nic_count']") ? Number(get(\"input[name='nic_count']\")) : null,
+          ap_code_authorized: get("select[name='ap_code_authorized']"),
+          physical_zone: get("select[name='physical_zone']"),
+          power_watt: get("select[name='power_watt']") ? Number(get(\"select[name='power_watt']\")) : null,
+          heartbeat: get("input[name='heartbeat']"),
+          soki_name: get("input[name='soki_name']"),
+          san: get("input[name='san']")
         });
       });
-
       document.getElementById("json_payload").value = JSON.stringify({
         generated_at: new Date().toISOString(),
         servers: rows
       });
-      return true; // submit
+      return true;
     }
-
-    // Any checkbox change updates button state
     document.addEventListener("change", e=>{
-      if(e.target.matches("input[type='checkbox']")) updateGenerateState();
+      if(e.target.classList.contains("row-check")) updateGenerateState();
     });
     document.addEventListener("DOMContentLoaded", updateGenerateState);
   </script>
@@ -108,15 +118,15 @@
 <body>
   <div class="shell">
     <div class="hero">
-      <img src="/static/bnp_logo.png" alt="BNP" />
+      <img src="/static/bnp_logo.png" alt="BNP">
       <h1>Serveurs en stock (warehouse)</h1>
-      <div class="pill">Sélectionnez, modifiez puis générez le JSON</div>
+      <div class="pill hint">Sélectionnez, modifiez puis générez le JSON</div>
     </div>
 
     {% if message_ok %}<div class="alert success">{{ message_ok }}</div>{% endif %}
     {% if message_error %}<div class="alert error">{{ message_error }}</div>{% endif %}
 
-    <form method="post" action="/servers/warehouse" onsubmit="return collectAndSubmit()">
+    <form method="post" action="/servers/warehouse" onsubmit="return collectAndSubmit(this)">
       <input type="hidden" id="json_payload" name="json_payload" value="" />
 
       <div class="toolbar">
@@ -132,19 +142,19 @@
             <thead>
               <tr>
                 <th class="col-check"></th>
-                <th class="w-po">PO Number</th>
-                <th class="w-vendor">Vendor</th>
-                <th class="w-model">Model</th>
-                <th class="w-cfi">CFI Code</th>
-                <th class="w-serial">Serial</th>
-                <th class="w-country">Country</th>
-                <th class="w-nic">NIC Interface Number</th>
-                <th class="w-ap">AP code authorized</th>
-                <th class="w-pz">Physical Zone</th>
-                <th class="w-watt">Power Watt</th>
-                <th class="w-heart">HeartBeat</th>
-                <th class="w-soki">Soki Name</th>
-                <th class="w-san">SAN</th>
+                <th>PO Number</th>
+                <th>Vendor</th>
+                <th>Model</th>
+                <th>CFI Code</th>
+                <th>Serial</th>
+                <th>Country</th>
+                <th>NIC Interface Number</th>
+                <th>AP code authorized</th>
+                <th>Physical Zone</th>
+                <th>Power Watt</th>
+                <th>HeartBeat</th>
+                <th>Soki Name</th>
+                <th>SAN</th>
               </tr>
             </thead>
             <tbody>
@@ -152,17 +162,19 @@
               <tr class="data-row" data-id="{{ s.t_server_sts_id }}">
                 <td class="col-check"><input type="checkbox" class="row-check" aria-label="Sélectionner"></td>
 
-                <td class="w-po"><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
-                <td class="w-vendor"><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
-                <td class="w-model"><input name="model" value="{{ s.t_server_sts_model or '' }}" readonly></td>
+                <!-- Read-only identity -->
+                <td><input name="po_number" value="{{ s.t_server_sts_po_number or '' }}" readonly></td>
+                <td><input name="vendor" value="{{ s.t_server_sts_vendor or '' }}" readonly></td>
+                <td><input name="model" value="{{ s.t_server_sts_model or '' }}" readonly></td>
 
-                <td class="w-cfi"><input name="cfi_code" value="{{ s.t_server_sts_cfi_code or '' }}"></td>
-                <td class="w-serial"><input name="serial" value="{{ s.t_server_sts_serial or '' }}" readonly></td>
-                <td class="w-country"><input name="country" value="{{ s.t_server_sts_country or '' }}" readonly></td>
+                <!-- Editable / prefilled -->
+                <td class="ctrl"><input name="cfi_code" value="{{ s.t_server_sts_cfi_code or '' }}"></td>
+                <td><input name="serial" value="{{ s.t_server_sts_serial or '' }}" readonly></td>
+                <td><input name="country" value="{{ s.t_server_sts_country or '' }}" readonly></td>
 
-                <td class="w-nic"><input name="nic_count" type="number" min="0" value="{{ s.t_server_sts_nic_count or '' }}"></td>
+                <td class="ctrl"><input name="nic_count" value="{{ s.t_server_sts_nic_count or '' }}"></td>
 
-                <td class="w-ap">
+                <td class="ctrl">
                   <select name="ap_code_authorized">
                     <option value=""></option>
                     {% for ap in ap_codes %}
@@ -171,27 +183,27 @@
                   </select>
                 </td>
 
-                <td class="w-pz">
+                <td class="ctrl">
                   <select name="physical_zone">
                     <option value=""></option>
                     {% for z in physical_zones %}
-                      <option value="{{ z }}" {% if s.physical_zone == z %}selected{% endif %}>{{ z }}</option>
+                      <option value="{{ z }}">{{ z }}</option>
                     {% endfor %}
                   </select>
                 </td>
 
-                <td class="w-watt">
+                <td class="ctrl">
                   <select name="power_watt">
                     <option value=""></option>
                     {% for w in power_watts %}
-                      <option value="{{ w }}" {% if s.power_watt == w %}selected{% endif %}>{{ w }}</option>
+                      <option value="{{ w }}" {% if s.t_server_sts_power_watt == w %}selected{% endif %}>{{ w }}</option>
                     {% endfor %}
                   </select>
                 </td>
 
-                <td class="w-heart"><input name="heartbeat" value="{{ s.heartbeat or '' }}"></td>
-                <td class="w-soki"><input name="soki_name" value="{{ s.soki_name or '' }}"></td>
-                <td class="w-san"><input name="san" value="{{ s.san or '' }}"></td>
+                <td class="ctrl"><input name="heartbeat" value="{{ 'YES' if s.t_server_sts_heartbeat else '' }}"></td>
+                <td class="ctrl"><input name="soki_name" value="{{ s.t_server_sts_soki or '' }}"></td>
+                <td class="ctrl"><input name="san" value="{{ 'YES' if s.t_server_sts_san else '' }}"></td>
               </tr>
               {% endfor %}
             </tbody>
