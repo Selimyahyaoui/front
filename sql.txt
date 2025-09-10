@@ -1,13 +1,24 @@
--- Do we really have rows that match?
-SELECT COUNT(*) 
+SELECT COUNT(*), MIN(t_server_sts_state_string), MAX(t_server_sts_state_string)
 FROM supchain.t_server_sts
 WHERE LOWER(TRIM(t_server_sts_state_string)) = 'warehouse';
 
--- See the distinct raw values (spot spaces/casing)
-SELECT DISTINCT t_server_sts_state_string
-FROM supchain.t_server_sts
-ORDER BY 1;
 
--- Sanity: what DB/user/schema does the app likely hit?
-SELECT current_database(), current_user;
-SHOW search_path;
+SELECT
+  t_server_sts_id,
+  t_server_sts_po_number,
+  t_server_sts_vendor,
+  t_server_sts_model,
+  t_server_sts_cfi_code,
+  t_server_sts_serial,
+  t_server_sts_country,
+  t_server_sts_nic_count,
+  t_server_sts_t_ap_code_authorized_ap_code,
+  t_server_sts_power_watt,
+  t_server_sts_heartbeat,
+  t_server_sts_soki,
+  t_server_sts_san,
+  t_server_sts_state_string
+FROM supchain.t_server_sts
+WHERE LOWER(TRIM(t_server_sts_state_string)) IN ('warehouse','warehousse')
+ORDER BY t_server_sts_id
+LIMIT 20;
