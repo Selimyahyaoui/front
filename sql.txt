@@ -1,24 +1,8 @@
-SELECT COUNT(*), MIN(t_server_sts_state_string), MAX(t_server_sts_state_string)
-FROM supchain.t_server_sts
-WHERE LOWER(TRIM(t_server_sts_state_string)) = 'warehouse';
-
-
-SELECT
-  t_server_sts_id,
-  t_server_sts_po_number,
-  t_server_sts_vendor,
-  t_server_sts_model,
-  t_server_sts_cfi_code,
-  t_server_sts_serial,
-  t_server_sts_country,
-  t_server_sts_nic_count,
-  t_server_sts_t_ap_code_authorized_ap_code,
-  t_server_sts_power_watt,
-  t_server_sts_heartbeat,
-  t_server_sts_soki,
-  t_server_sts_san,
-  t_server_sts_state_string
-FROM supchain.t_server_sts
-WHERE LOWER(TRIM(t_server_sts_state_string)) IN ('warehouse','warehousse')
-ORDER BY t_server_sts_id
-LIMIT 20;
+sql = """
+    SELECT DISTINCT TRIM(s.t_server_sts_physical_zone_target)
+    FROM supchain.t_server_sts AS s
+    WHERE s.t_server_sts_physical_zone_target IS NOT NULL
+      AND TRIM(s.t_server_sts_physical_zone_target) <> ''
+      AND LOWER(TRIM(s.t_server_sts_state_string)) = 'warehouse'
+    ORDER BY 1
+    """
