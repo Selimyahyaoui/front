@@ -1,15 +1,19 @@
 def fetch_physical_zones() -> List[str]:
-    """
-    List of physical zones coming from the server records themselves.
-    We only look at servers in 'warehouse' state and ignore NULL/empty.
-    """
     sql = """
-    SELECT DISTINCT TRIM(s.t_server_sts_physical_zone_target)
-    FROM supchain.t_server_sts AS s
-    WHERE s.t_server_sts_physical_zone_target IS NOT NULL
-      AND TRIM(s.t_server_sts_physical_zone_target) <> ''
-      AND LOWER(TRIM(s.t_server_sts_state_string)) = 'warehouse'
-    ORDER BY 1
+    SELECT DISTINCT t_physical_zone_target
+    FROM supchain.t_physical_zone
+    WHERE t_physical_zone_date_availability = 'YES'
+    ORDER BY 1;
     """
-    rows = _safe_fetchall(sql)
-    return [r[0] for r in rows if r[0]]
+    return [r[0] for r in _safe_fetchall(sql)]
+
+
+
+<td class="ctrl">
+  <select name="physical_zone">
+    <option value=""></option>
+    {% for z in physical_zones %}
+      <option value="{{ z }}" {% if s.t_server_sts_physical_zone_target == z %}selected{% endif %}>{{ z }}</option>
+    {% endfor %}
+  </select>
+</td>
