@@ -1,171 +1,153 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <title>Ajouter une commande Dell</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>Ajouter une commande (PO)</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:#f6f7fb;margin:0}
-    header{background:#178a2e;color:#fff;padding:18px 22px;font-size:22px;font-weight:700}
-    .wrap{max-width:980px;margin:22px auto;padding:0 16px}
-    .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:18px 18px 8px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    label{display:block;font-weight:600;margin-bottom:6px}
-    input[type=text],select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #d6d8df;border-radius:6px;background:#fff}
-    input[disabled]{background:#f2f3f7;color:#7c7f8b}
-    .actions{margin-top:16px;display:flex;gap:10px}
-    .btn{padding:10px 14px;border-radius:6px;border:0;cursor:pointer;font-weight:600}
-    .btn-primary{background:#178a2e;color:#fff}
-    .btn-secondary{background:#e8eaf1}
-    .note{font-size:12px;color:#6b7280;margin-top:4px}
-    .alert{margin:14px 0;padding:12px;border-radius:6px}
-    .alert-ok{background:#e8f6ee;color:#115c22;border:1px solid #bfe6cb}
-    .alert-err{background:#fde8e8;color:#8b1e1e;border:1px solid #f5b5b5}
-    pre{background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;overflow:auto}
-    a.back{display:inline-block;margin-top:10px;color:#178a2e;text-decoration:none}
+    :root{
+      --brand:#14823b; --ink:#1f2937; --muted:#6b7280; --bg:#f7f7f9;
+      --card:#fff; --border:#e5e7eb; --danger:#8a1d1d; --success:#116d37;
+      --success-bg:#e7f6ea; --danger-bg:#fdeaea;
+    }
+    html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+    .shell{max-width:1100px;margin:24px auto;padding:0 16px}
+    .hero{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .hero h1{font-size:18px;margin:0}
+    .hint{color:var(--muted);margin-left:auto}
+    .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
+    .alert.success{background:var(--success-bg);border-color:#cdebd7;color:var(--success)}
+    .alert.error{background:var(--danger-bg);border-color:#f5c2c2;color:var(--danger)}
+    .locked{background:#fff6d8;border:1px solid #f3e3a4;color:#5c4b00}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+    .btn{border:0;background:var(--brand);color:#fff;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;color:var(--muted);padding:8px}
+    td{border-bottom:1px solid var(--border);padding:8px}
+    input,select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;font:inherit}
+    .row-actions{display:flex;gap:6px}
   </style>
+  <script>
+    // ----- dynamic rows -----
+    function newRow(data={}){
+      const tr = document.createElement('tr');
+      tr.className = 'order-row';
+      tr.innerHTML = `
+        <td><input name="po_number" value="${data.po_number||''}" required></td>
+        <td><input name="project_name" value="${data.project_name||''}" required></td>
+        <td><input name="business_unit" value="${data.business_unit||''}" required></td>
+        <td><input name="ritm_request" value="${data.ritm_request||''}" required></td>
+        <td><input name="vendor" value="${data.vendor||''}" required></td>
+        <td><input name="workflow_achat_id" type="number" step="1" min="0" value="${data.workflow_achat_id??''}" required></td>
+        <td>
+          <select name="status" required>
+            ${['Requested','Ordered','Shipped','Delivered'].map(s=>`<option ${data.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td><input name="ap_code_authorized" value="${data.ap_code_authorized||''}"></td>
+        <td class="row-actions">
+          <button type="button" onclick="removeRow(this)">🗑</button>
+        </td>`;
+      return tr;
+    }
+    function addRow(prefill){ document.querySelector('#rows').appendChild(newRow(prefill||{})); }
+    function removeRow(btn){ btn.closest('tr').remove(); updateSubmitState(); }
+
+    // ----- payload build -----
+    function collectAndSubmit(){
+      const rows = Array.from(document.querySelectorAll('.order-row'));
+      const orders = rows.map(r=>{
+        const get = n => r.querySelector(`[name="${n}"]`).value.trim();
+        const num = n => {
+          const v = r.querySelector(`[name="${n}"]`).value.trim();
+          return v==="" ? null : Number(v);
+        };
+        return {
+          po_number: get('po_number'),
+          project_name: get('project_name'),
+          business_unit: get('business_unit'),
+          ritm_request: get('ritm_request'),
+          vendor: get('vendor').toLowerCase(),   // règle historique: vendor en lowercase
+          workflow_achat_id: num('workflow_achat_id'),
+          status: get('status'),
+          ap_code_authorized: get('ap_code_authorized')
+        };
+      }).filter(o => o.po_number !== "");
+
+      document.getElementById('json_payload').value = JSON.stringify({orders});
+      return true;
+    }
+
+    function updateSubmitState(){
+      const anyRow = document.querySelectorAll('.order-row').length > 0;
+      document.getElementById('btn-submit').disabled = !anyRow;
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      if (!{{ 'true' if locked else 'false' }}){
+        addRow(); // start with one empty line
+        updateSubmitState();
+      }
+    });
+  </script>
 </head>
 <body>
-<header>Ajouter une commande Dell</header>
-<div class="wrap">
-
-  {% if message_ok %}
-    <div class="alert alert-ok">{{ message_ok }}</div>
-  {% endif %}
-  {% if message_error %}
-    <div class="alert alert-err">{{ message_error }}</div>
-  {% endif %}
-
-  <form method="post" action="/orders/add" class="card">
-    <div class="grid">
-      <div>
-        <label for="po_number">PO Number</label>
-        <input id="po_number" name="po_number" type="text" required>
-      </div>
-      <div>
-        <label for="status">Statut</label>
-        <select id="status" name="status">
-          <option value="Pending">Pending</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
-        </select>
-      </div>
+  <div class="shell">
+    <div class="hero">
+      <h1>Ajouter une commande (PO)</h1>
+      <div class="hint">Les commandes saisies sont regroupées dans un seul JSON (PV).</div>
     </div>
 
-    <h3 style="margin-top:18px">Informations serveur / site</h3>
-    <div class="grid">
-      <div>
-        <label for="cfi_code">CFI Code</label>
-        <input id="cfi_code" name="cfi_code" type="text" value="" disabled>
-        <div class="note">Donnée en dur (non modifiable).</div>
-      </div>
+    {% if message_ok %}<div class="alert success">{{ message_ok }}</div>{% endif %}
+    {% if message_error %}<div class="alert error">{{ message_error }}</div>{% endif %}
 
-      <div>
-        <label for="site_id">Site</label>
-        <select id="site_id" name="site_id" required>
-          <option value="">— Sélectionner —</option>
-          {% for s in sites %}
-          <option value="{{ s.id }}" data-country="{{ s.country }}">{{ s.label }}</option>
-          {% endfor %}
-        </select>
+    {% if locked %}
+      <div class="alert locked">
+        Un fichier <strong>orders.json</strong> existe déjà sur le PV (traitement en cours).
+        L’interface est verrouillée jusqu’à suppression via <code>DELETE /orders/json</code>.
       </div>
-
-      <div>
-        <label for="country">Country</label>
-        <input id="country" name="country" type="text" value="" disabled>
-        <div class="note">Auto-renseigné selon le site.</div>
-      </div>
-
-      <div>
-        <label for="ap_code">AP code authorized</label>
-        <select id="ap_code" name="ap_code">
-          <option value="">— Sélectionner —</option>
-          {% for code in ap_codes %}
-          <option value="{{ code }}">{{ code }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <h3 style="margin-top:18px">Réseau / Zone / Alimentation</h3>
-    <div class="grid">
-      <div>
-        <label for="nic_interface_number">NIC Interface Number</label>
-        <input id="nic_interface_number" name="nic_interface_number" type="text" value="" disabled>
-      </div>
-
-      <div>
-        <label for="physical_zone">Physical Zone</label>
-        <select id="physical_zone" name="physical_zone">
-          <option value="">— Sélectionner —</option>
-          {% for z in physical_zones %}
-          <option value="{{ z }}">{{ z }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div>
-        <label for="power_watt">Power Watt</label>
-        <select id="power_watt" name="power_watt">
-          {% for w in power_watts %}
-          <option value="{{ w }}">{{ w }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <h3 style="margin-top:18px">Autres</h3>
-    <div class="grid">
-      <div>
-        <label for="san">SAN</label>
-        <input id="san" name="san" type="text" value="" disabled>
-      </div>
-      <div>
-        <label for="heartbeat">HeartBeat</label>
-        <input id="heartbeat" name="heartbeat" type="text" value="" disabled>
-      </div>
-      <div>
-        <label for="soki_name">Soki Name</label>
-        <input id="soki_name" name="soki_name" type="text" placeholder="Nom ajouté par CT">
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-primary" type="submit">➕ Ajouter</button>
-      <a class="btn btn-secondary" href="/">Retour à l’accueil</a>
-    </div>
-
-    {% if order_json %}
-      <h3 style="margin-top:18px">Prévisualisation JSON</h3>
-      <pre>{{ order_json | tojson(indent=2) }}</pre>
     {% endif %}
-  </form>
 
-  <a class="back" href="/">← Retour à l'accueil</a>
-</div>
+    <div class="card">
+      <form method="post" action="/orders/add" onsubmit="return collectAndSubmit()">
+        <input type="hidden" id="json_payload" name="json_payload" value="">
+        <div class="toolbar">
+          <button type="button" class="btn" onclick="addRow()" {% if locked %}disabled{% endif %}>Ajouter une ligne</button>
+          <div style="flex:1"></div>
+          <button id="btn-submit" class="btn" {% if locked %}disabled{% endif %}>Générer le JSON</button>
+        </div>
 
-<script>
-  // Auto-fill Country when Site changes – using embedded data-attr or AJAX
-  const siteSelect = document.getElementById('site_id');
-  const countryInput = document.getElementById('country');
+        <div style="overflow:auto; max-height:70vh">
+          <table>
+            <thead>
+              <tr>
+                <th>PO Number</th>
+                <th>Project Name</th>
+                <th>Business Unit</th>
+                <th>RITM Request</th>
+                <th>Vendor</th>
+                <th>Workflow Achat ID</th>
+                <th>Status</th>
+                <th>AP Code Authorized</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              {% if locked %}
+              <!-- When locked, show nothing editable -->
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </form>
+    </div>
+  </div>
 
-  async function updateCountry() {
-    const opt = siteSelect.options[siteSelect.selectedIndex];
-    const fromAttr = opt ? opt.getAttribute('data-country') : '';
-    if (fromAttr) { countryInput.value = fromAttr; return; }
-
-    const id = siteSelect.value;
-    if (!id) { countryInput.value = ''; return; }
-    try {
-      const res = await fetch(`/orders/site-info?site_id=${encodeURIComponent(id)}`);
-      if (res.ok) {
-        const data = await res.json();
-        countryInput.value = data.country || '';
-      }
-    } catch(_) {}
-  }
-  siteSelect.addEventListener('change', updateCountry);
-  updateCountry();
-</script>
+  {% if not locked %}
+  <script>updateSubmitState()</script>
+  {% endif %}
 </body>
 </html>
