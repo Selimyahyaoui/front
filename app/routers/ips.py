@@ -2,21 +2,10 @@ from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 import psycopg2
-import os
+from app.db.database import get_connection  # 👈 use your shared database module
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432"),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASSWORD", "password"),
-    "dbname": os.getenv("DB_NAME", "dell"),
-}
-
-def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
 
 @router.get("/ips", response_class=HTMLResponse)
 def list_ips(
