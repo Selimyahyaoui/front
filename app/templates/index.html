@@ -1,29 +1,141 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Accueil - Interface Serveurs</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <title>Accueil – Interface Serveurs</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --brand:#14823b; --ink:#1f2937; --muted:#6b7280;
+      --bg:#f7f7f9; --card:#ffffff; --border:#e5e7eb;
+    }
+    html,body{margin:0;background:var(--bg);color:var(--ink);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;}
+    .shell{max-width:1100px;margin:24px auto;padding:0 16px;}
+
+    /* Header */
+    .hero{
+      display:flex;align-items:center;gap:12px;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+      box-shadow:0 1px 2px rgba(0,0,0,.05);margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{font-size:18px;margin:0}
+    .hero small{margin-left:auto;color:var(--muted)}
+
+    /* Grid of links */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    @media (max-width: 900px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width: 600px){.grid{grid-template-columns:1fr}}
+
+    .card-link{
+      display:flex;gap:12px;align-items:center;background:var(--card);
+      border:1px solid var(--border);border-radius:12px;padding:14px;
+      text-decoration:none;color:inherit;box-shadow:0 1px 2px rgba(0,0,0,.04);
+      transition:transform .05s ease, box-shadow .15s ease}
+    .card-link:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.06)}
+    .card-emoji{font-size:22px}
+    .card-title{font-weight:700}
+    .card-sub{color:var(--muted);font-size:12px;margin-top:2px}
+  </style>
 </head>
 <body>
-    <header>
-        <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo">
-        <h1>Interface de gestion des serveurs</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="/orders">📄 Commandes Dell (T_OrderServeurs)</a></li>
-            <li><a href="/servers">🚚 Serveurs à rapatrier</a></li>
-            <li><a href="/servers/validate">✅ Validation des rapatriements</a></li>
-            <li><a href="/assets">💾 Assets (T_AssetReport)</a></li>
-            <li><a href="/assets/upload">📤 Upload fichier CSV</a></li>
-            <li><a href="/orders/add">➕ Ajouter commande</a></li>
-            <li><a href="/sites">🌍 Sites (T_Site)</a></li>
-            <li><a href="/ips">🌐 IPs DHCP</a></li>
-            <li><a href="/catalog">📦 Serveurs catalogue</a></li>
-            <li><a href="/vlans">🧩 VLANs disponibles</a></li>
-            <li><a href="#">📘 Pool serveurs</a></li>
-        </ul>
-    </nav>
+  <div class="shell">
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP Paribas">
+      <h1>Interface de gestion des serveurs</h1>
+      <small>BMaaS</small>
+    </div>
+
+    <div class="grid">
+      <a class="card-link" href="/orders">
+        <div class="card-emoji">📄</div>
+        <div>
+          <div class="card-title">Commandes Dell</div>
+          <div class="card-sub">Liste des commandes (T_OrderServers)</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/servers/warehouse">
+        <div class="card-emoji">🚚</div>
+        <div>
+          <div class="card-title">Serveurs à rapatrier</div>
+          <div class="card-sub">Sélection / JSON de préparation</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/servers/validate">
+        <div class="card-emoji">✅</div>
+        <div>
+          <div class="card-title">Validation des rapatriements</div>
+          <div class="card-sub">Contrôles et confirmation</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/assets">
+        <div class="card-emoji">💾</div>
+        <div>
+          <div class="card-title">Assets</div>
+          <div class="card-sub">Inventaire (T_AssetReport)</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/assets/upload">
+        <div class="card-emoji">📤</div>
+        <div>
+          <div class="card-title">Upload CSV</div>
+          <div class="card-sub">Importer des rapports d’assets</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/orders/add">
+        <div class="card-emoji">➕</div>
+        <div>
+          <div class="card-title">Ajouter commande</div>
+          <div class="card-sub">Création d’un lot d’ordres</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/sites">
+        <div class="card-emoji">🌍</div>
+        <div>
+          <div class="card-title">Sites</div>
+          <div class="card-sub">Référentiel (T_Site)</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/ips">
+        <div class="card-emoji">🌐</div>
+        <div>
+          <div class="card-title">IPs DHCP</div>
+          <div class="card-sub">Gestion des adresses IP</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/catalog">
+        <div class="card-emoji">📦</div>
+        <div>
+          <div class="card-title">Serveurs catalogue</div>
+          <div class="card-sub">Listing (T_Catalog_Server)</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/vlans">
+        <div class="card-emoji">🧩</div>
+        <div>
+          <div class="card-title">VLANs disponibles</div>
+          <div class="card-sub">Plages réseaux</div>
+        </div>
+      </a>
+
+      <a class="card-link" href="/pool_servers">
+        <div class="card-emoji">📘</div>
+        <div>
+          <div class="card-title">Pool serveurs</div>
+          <div class="card-sub">Suivi et états</div>
+        </div>
+      </a>
+    </div>
+  </div>
 </body>
 </html>
