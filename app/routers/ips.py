@@ -1,85 +1,75 @@
+# app/routers/ips.py
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
-import psycopg2
-from app.db.database import get_connection  # 👈 use your shared database module
+
+from app.db.database import get_connection  # <- keep your existing helper
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+# Columns we show (keep in sync with the template)
+COLUMNS = [
+    "t_ref_dhcp_id",
+    "t_ref_dhcp_network",
+    "t_ref_dhcp_id_vlan",
+    "t_ref_dhcp_t_site",
+    "t_ref_dhcp_infoblox",
+    "t_ref_dhcp_availability",
+    "t_ref_dhcp_date_add",
+]
 
 @router.get("/ips", response_class=HTMLResponse)
 def list_ips(
     request: Request,
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
-    q: str | None = Query(None, description="Search IP/VLAN/Hostname/Status"),
+    q: str = Query("", description="Search in id, network, vlan, site, infoblox"),
 ):
-    """
-    List IPs with pagination and optional search.
-    Search applies to: ip_address, vlan_id (as text), hostname, status.
-    """
     offset = (page - 1) * per_page
-    conn = get_connection()
-    try:
+
+    where_sql = ""
+    params = {}
+    if q:
+        where_sql = """
+        WHERE
+            CAST(t_ref_dhcp_id AS TEXT) ILIKE %(q)s
+            OR t_ref_dhcp_network ILIKE %(q)s
+            OR CAST(t_ref_dhcp_id_vlan AS TEXT) ILIKE %(q)s
+            OR CAST(t_ref_dhcp_t_site AS TEXT) ILIKE %(q)s
+            OR COALESCE(t_ref_dhcp_infoblox,'') ILIKE %(q)s
+        """
+        params["q"] = f"%{q}%"
+
+    col_sql = ", ".join(COLUMNS)
+
+    # Query
+    with get_connection() as conn:
         with conn.cursor() as cur:
-            # ----- COUNT with optional filter
-            if q:
-                like = f"%{q.lower()}%"
-                cur.execute(
-                    """
-                    SELECT COUNT(*)
-                    FROM T_RefDhcp
-                    WHERE
-                        LOWER(COALESCE(ip_address, '')) LIKE %s OR
-                        LOWER(COALESCE(CAST(vlan_id AS TEXT), '')) LIKE %s OR
-                        LOWER(COALESCE(hostname, '')) LIKE %s OR
-                        LOWER(COALESCE(status, '')) LIKE %s
-                    """,
-                    (like, like, like, like),
-                )
-            else:
-                cur.execute("SELECT COUNT(*) FROM T_RefDhcp")
+            # total count with same WHERE
+            cur.execute(f"SELECT COUNT(*) FROM t_ref_dhcp {where_sql}", params)
             total = cur.fetchone()[0]
 
-            # ----- PAGE with same filter
-            if q:
-                like = f"%{q.lower()}%"
-                cur.execute(
-                    """
-                    SELECT id, ip_address, vlan_id, hostname, status, assigned_date
-                    FROM T_RefDhcp
-                    WHERE
-                        LOWER(COALESCE(ip_address, '')) LIKE %s OR
-                        LOWER(COALESCE(CAST(vlan_id AS TEXT), '')) LIKE %s OR
-                        LOWER(COALESCE(hostname, '')) LIKE %s OR
-                        LOWER(COALESCE(status, '')) LIKE %s
-                    ORDER BY id ASC
-                    LIMIT %s OFFSET %s
-                    """,
-                    (like, like, like, like, per_page, offset),
-                )
-            else:
-                cur.execute(
-                    """
-                    SELECT id, ip_address, vlan_id, hostname, status, assigned_date
-                    FROM T_RefDhcp
-                    ORDER BY id ASC
-                    LIMIT %s OFFSET %s
-                    """,
-                    (per_page, offset),
-                )
+            cur.execute(
+                f"""
+                SELECT {col_sql}
+                FROM t_ref_dhcp
+                {where_sql}
+                ORDER BY t_ref_dhcp_id ASC
+                LIMIT %(limit)s OFFSET %(offset)s
+                """,
+                {**params, "limit": per_page, "offset": offset},
+            )
             rows = cur.fetchall()
 
-        return templates.TemplateResponse(
-            "ips.html",
-            {
-                "request": request,
-                "ips": rows,
-                "page": page,
-                "per_page": per_page,
-                "total": total,
-                "q": q or "",
-            },
-        )
-    finally:
-        conn.close()
+    return templates.TemplateResponse(
+        "ips.html",
+        {
+            "request": request,
+            "ips": rows,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "q": q,
+        },
+    )
