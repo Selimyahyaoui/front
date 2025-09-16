@@ -1,67 +1,114 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Commandes Dell</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <title>Commandes Dell</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* reuses the same micro-styles we used for catalogue/ips */
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+    .hero{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{margin:0;font-size:18px}
+    .hint{margin-left:auto;color:#6b7280;font-size:12px}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:14px}
+    .toolbar .spacer{flex:1}
+    .btn{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 10px;cursor:pointer}
+    .in{border:1px solid #e5e7eb;border-radius:8px;padding:8px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{background:#fbfbfc;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:.02em;padding:10px}
+    tbody td{border-bottom:1px solid #e5e7eb;padding:10px}
+    tbody tr:nth-child(odd){background:#fcfcfe}
+    .pill{display:inline-block;font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid #e5e7eb}
+    .pill--ok{background:#e7f6ea;color:#116d37;border-color:#ccebd6}
+    .pill--warn{background:#fff7e6;color:#a15c00;border-color:#ffe3b3}
+    .pill--bad{background:#fdeaea;color:#8a1d1d;border-color:#f5c2c2}
+    .pagination{display:flex;gap:10px;justify-content:flex-end;padding:10px 12px;color:#6b7280}
+    .pagination a{padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;text-decoration:none}
+    .muted{color:#6b7280}
+  </style>
 </head>
 <body>
-<header>
-    <img src="/static/bnp_logo.png" class="logo" alt="BNP">
-    <h1>Liste des commandes Dell</h1>
-</header>
+  <div class="shell">
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP">
+      <h1>Commandes Dell</h1>
+      <div class="hint">Recherche et pagination</div>
+    </div>
 
-<div class="content">
-    <form method="get" action="/orders">
-        <label for="per_page">Afficher</label>
-        <select name="per_page" id="per_page" onchange="this.form.submit()">
-            <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-            <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
-            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+    <form method="get" action="/orders" class="toolbar">
+      <label class="muted">Par page
+        <select name="per_page" class="in" onchange="this.form.submit()">
+          <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
+          <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
+          <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
+          <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
         </select>
-        entrées
-        <input type="hidden" name="page" value="{{ page }}">
+      </label>
+      <div class="spacer"></div>
+      <input class="in" type="text" name="q" value="{{ q or '' }}" placeholder="Rechercher (PO, projet, vendor)…">
+      <button class="btn" type="submit">Chercher</button>
+      <a class="btn" href="/">Accueil</a>
+      <input type="hidden" name="page" value="1">
     </form>
 
-    <table>
+    <div class="card">
+      <table>
         <thead>
-            <tr>
-                <th>ID</th>
-                <th>PO Number</th>
-                <th>Status</th>
-                <th>Date</th>
-            </tr>
+          <tr>
+            <th>ID</th>
+            <th>PO Number</th>
+            <th>Projet</th>
+            <th>Ajouté le</th>
+            <th>BU</th>
+            <th>Vendor</th>
+            <th>Statut</th>
+            <th>AP Code</th>
+          </tr>
         </thead>
         <tbody>
-            {% for order in orders %}
-            <tr>
-                <td>{{ order[0] }}</td>
-                <td>{{ order[1] }}</td>
-                <td>
-                    <span class="status status-{{ order[2]|lower|replace(' ', '-')|replace('\r', '')|replace('\n', '') }}">
-                        {{ order[2] }}
-                    </span>
-                </td>
-                <td>{{ order[3] }}</td>
-            </tr>
-            {% endfor %}
+          {% for o in orders %}
+          <tr>
+            <td>{{ o[0] }}</td>
+            <td class="muted">{{ o[1] }}</td>
+            <td>{{ o[2] }}</td>
+            <td>{{ o[3] }}</td>
+            <td>{{ o[4] }}</td>
+            <td>{{ o[5] }}</td>
+            <td>
+              {% set s = (o[6] or '')|lower %}
+              {% if 'ship' in s or 'done' in s or 'ok' in s or 'deliv' in s %}
+                <span class="pill pill--ok">{{ o[6] }}</span>
+              {% elif 'pend' in s or 'proc' in s or 'in progress' in s %}
+                <span class="pill pill--warn">{{ o[6] }}</span>
+              {% elif 'cancel' in s or 'fail' in s or 'error' in s or 'ko' in s %}
+                <span class="pill pill--bad">{{ o[6] }}</span>
+              {% else %}
+                <span class="pill">{{ o[6] }}</span>
+              {% endif %}
+            </td>
+            <td>{{ o[7] }}</td>
+          </tr>
+          {% endfor %}
+          {% if orders|length == 0 %}
+          <tr><td colspan="8" class="muted">Aucune commande.</td></tr>
+          {% endif %}
         </tbody>
-    </table>
+      </table>
 
-    <div class="pagination">
+      <div class="pagination">
+        <span>Total: {{ total }}</span>
         {% if page > 1 %}
-            <a href="/orders?page={{ page - 1 }}&per_page={{ per_page }}">« Précédent</a>
+          <a href="/orders?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Précédent</a>
         {% endif %}
         <span>Page {{ page }}</span>
         {% if (page * per_page) < total %}
-            <a href="/orders?page={{ page + 1 }}&per_page={{ per_page }}">Suivant »</a>
+          <a href="/orders?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Suivant</a>
         {% endif %}
+      </div>
     </div>
-
-    <div style="margin-top: 20px;">
-        <a href="/">← Retour à l'accueil</a>
-    </div>
-</div>
+  </div>
 </body>
 </html>
