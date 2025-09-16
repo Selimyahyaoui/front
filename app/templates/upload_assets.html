@@ -1,146 +1,119 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <title>Importer des assets</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <meta charset="UTF-8">
+  <title>Importer des Assets</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* Page shell same as catalog */
+    .shell { max-width: 1100px; margin: 24px auto; padding: 0 12px; }
+    .hdr {
+      display:flex; align-items:center; gap:12px; margin-bottom:14px;
+      padding:14px 16px; background:#fff; border:1px solid #e6e6e6; border-radius:10px;
+    }
+    .hdr .logo { height:26px; }
+    .hdr .title { font-size:22px; font-weight:800; color:#0a3f2e; }
+    .toolbar { display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .toolbar .right { display:flex; gap:8px; align-items:center; }
+    .btn { border:1px solid #d8d8d8; background:#fff; padding:7px 10px; border-radius:8px;
+           cursor:pointer; font-weight:600; }
+    .btn[disabled] { opacity:.6; cursor:not-allowed; }
+    .card { background:#fff; border:1px solid #e6e6e6; border-radius:14px; padding:14px; }
+    .hint { color:#666; font-size:13px; margin-top:4px; }
+    .alert { border-radius:10px; padding:10px 12px; margin:10px 0; }
+    .alert-ok { background:#f2fbf5; border:1px solid #ccead5; color:#0b5b36; }
+    .alert-err { background:#fff4f4; border:1px solid #f0c7c7; color:#b71c1c; }
+    .alert-lock { background:#fff8e6; border:1px solid #f0d38a; color:#6b4f00; }
+
+    /* Table for the expected structure */
+    table.tbl { width:100%; border-collapse:collapse; }
+    .tbl th, .tbl td { padding:8px 10px; border-bottom:1px solid #eee; }
+    .tbl th { background:#f6f6f6; text-transform:uppercase; font-size:12px; letter-spacing:.03em; }
+    .muted { color:#888; font-size:12px; }
+  </style>
 </head>
 <body>
   <div class="shell">
-    <div class="header">
-      <div class="brand">
-        <img src="/static/bnp_logo.png" alt="BNP Paribas" />
-        <div>
-          <div class="title">Importer des assets</div>
-          <div class="subtitle">Déposez un CSV. La page est verrouillée si un JSON existe déjà.</div>
-        </div>
-      </div>
-      <a class="btn" href="/">Accueil</a>
+
+    <!-- header -->
+    <div class="hdr">
+      <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo">
+      <div class="title">Importer des Assets (CSV fournisseur)</div>
     </div>
 
-    <!-- Messages -->
+    <!-- toolbar: only an Accueil button to match catalog style -->
+    <div class="toolbar">
+      <div class="muted">Liste issue de <b>T_AssetReport</b></div>
+      <div class="right">
+        <a class="btn" href="/">Accueil</a>
+      </div>
+    </div>
+
+    <!-- messages -->
     {% if message_ok %}
-      <div class="alert success">{{ message_ok }}</div>
+      <div class="alert alert-ok">{{ message_ok }}</div>
     {% endif %}
     {% if message_error %}
-      <div class="alert error">{{ message_error }}</div>
+      <div class="alert alert-err">{{ message_error }}</div>
+    {% endif %}
+    {% if locked %}
+      <div class="alert alert-lock">
+        Un fichier JSON existe déjà (<code>{{ json_path }}</code>).<br>
+        L’interface est verrouillée tant que l’API <code>DELETE /assets/json</code> n’a pas supprimé ce fichier.
+        Vous pouvez consulter le JSON via l’API <code>GET /assets/json</code>.
+      </div>
     {% endif %}
 
-    <!-- Upload card -->
-    <div class="card">
-      {% if locked %}
-        <div class="err" style="margin-bottom:12px;">
-          Import verrouillé : un fichier JSON est présent (<code>{{ lock_path }}</code>).
-          Supprimez-le via l’API <code>DELETE /assets/json</code> pour déverrouiller.
-        </div>
-      {% endif %}
+    <!-- upload card -->
+    <div class="card" style="margin-bottom:14px;">
+      <form method="post" action="/assets/upload" enctype="multipart/form-data">
+        <fieldset {% if locked %}disabled{% endif %} style="border:0; padding:0; margin:0;">
+          <label for="file"><b>Choisir un fichier CSV</b></label><br>
+          <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+          <div class="hint">Format: CSV (UTF-8), taille max ~20 Mo, séparateur auto (',' ';' ou tab).</div>
 
-      <form method="post" action="/assets/upload" enctype="multipart/form-data" class="toolbar">
-        <div>
-          <label for="file"><strong>Fichier CSV</strong></label><br />
-          <input type="file" id="file" name="file" accept=".csv" {% if locked %}disabled{% endif %} />
-          <div class="hint">Le fichier sera stocké sur le PV ({{ lock_path | replace('assets_transformed.json','') }}).</div>
-        </div>
-
-        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
-          <input type="hidden" name="page" value="{{ page }}" />
-          <input type="hidden" name="per_page" value="{{ per_page }}" />
-          <button class="btn btn-primary" type="submit" {% if locked %}disabled{% endif %}>Importer</button>
-        </div>
+          <div style="margin-top:12px;">
+            <button class="btn" type="submit" {% if locked %}disabled{% endif %}>Importer</button>
+            <a class="btn" href="/assets/json" target="_blank">Voir le JSON (GET)</a>
+          </div>
+        </fieldset>
       </form>
     </div>
 
-    <!-- Preview table (moved to the bottom) -->
+    <!-- expected structure below (as requested) -->
     <div class="card">
-      <div class="toolbar">
-        <div class="hint">Aperçu des assets (T_AssetReport)</div>
-        <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-          <form method="get" action="/assets/upload" style="display:flex; align-items:center; gap:8px;">
-            <label for="per_page">Par page</label>
-            <select id="per_page" name="per_page" onchange="this.form.submit()">
-              <option value="10"  {% if per_page == 10  %}selected{% endif %}>10</option>
-              <option value="20"  {% if per_page == 20  %}selected{% endif %}>20</option>
-              <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
-              <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
-            </select>
-            <input type="hidden" name="page" value="{{ page }}" />
-          </form>
-        </div>
-      </div>
+      <h3 style="margin:0 0 8px 0;">Structure attendue</h3>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Colonnes obligatoires</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              SerialNumber, CfiCode, Region, CfiName, ClientNumber, ClientName, ProcessorType,
+              NumberSocket, NumberCore, Model, CustomerAddress, Postcode, Country, OrderNumber,
+              PONumber, BmcMacAddress, Memory, HBA, BOSS, PERC, NVME, GPU
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      <div style="overflow:auto;">
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Date ajout</th>
-              <th>Serial</th>
-              <th>CFI code</th>
-              <th>Région</th>
-              <th>CFI name</th>
-              <th>Client #</th>
-              <th>Client</th>
-              <th>CPU</th>
-              <th>Sockets</th>
-              <th>Cœurs</th>
-              <th>Modèle</th>
-              <th>Adresse client</th>
-              <th>Code postal</th>
-              <th>Pays</th>
-              <th>Order #</th>
-              <th>PO</th>
-              <th>BMC MAC</th>
-              <th>Mémoire (MB)</th>
-              <th>HBA</th>
-              <th>BOSS</th>
-              <th>PERC</th>
-              <th>NVMe</th>
-              <th>GPU</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for r in rows %}
-            <tr>
-              <td>{{ r[0] }}</td>
-              <td>{{ r[1] }}</td>
-              <td>{{ r[2] }}</td>
-              <td>{{ r[3] }}</td>
-              <td>{{ r[4] }}</td>
-              <td>{{ r[5] }}</td>
-              <td>{{ r[6] }}</td>
-              <td>{{ r[7] }}</td>
-              <td>{{ r[8] }}</td>
-              <td>{{ r[9] }}</td>
-              <td>{{ r[10] }}</td>
-              <td>{{ r[11] }}</td>
-              <td>{{ r[12] }}</td>
-              <td>{{ r[13] }}</td>
-              <td>{{ r[14] }}</td>
-              <td>{{ r[15] }}</td>
-              <td>{{ r[16] }}</td>
-              <td>{{ r[17] }}</td>
-              <td>{{ r[18] }}</td>
-              <td>{{ r[19] }}</td>
-              <td>{{ r[20] }}</td>
-              <td>{{ r[21] }}</td>
-              <td>{{ r[22] }}</td>
-              <td>{{ r[23] }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="pagination">
-        {% if page > 1 %}
-          <a class="btn" href="/assets/upload?page={{ page - 1 }}&per_page={{ per_page }}">Précédent</a>
-        {% endif %}
-        <span>Page {{ page }}</span>
-        {% if (page * per_page) < total %}
-          <a class="btn" href="/assets/upload?page={{ page + 1 }}&per_page={{ per_page }}">Suivant</a>
-        {% endif %}
-        <span style="margin-left:auto;">Total : {{ total }}</span>
-      </div>
+      <div class="muted" style="margin-top:10px;">Groupes requis (≥1) et plages autorisées</div>
+      <table class="tbl" style="margin-top:6px;">
+        <thead>
+          <tr>
+            <th>Groupes requis (≥1)</th>
+            <th>Plage autorisée</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>HDD1..HDD12</td><td>HDD1 à HDD12</td></tr>
+          <tr><td>EMBMCA1..C</td><td>EMBMCA1 à EMBMCA3</td></tr>
+          <tr><td>NIC1..NIC6</td><td>NIC1 à NIC6</td></tr>
+        </tbody>
+      </table>
     </div>
 
   </div>
