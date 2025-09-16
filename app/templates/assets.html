@@ -2,128 +2,146 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Assets (T_AssetReport)</title>
+  <title>Assets (inventaire)</title>
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* Same look & feel as your catalogue page */
+    :root{
+      --brand:#14823b; --brand-ink:#0f5f2c; --ink:#1f2937; --muted:#6b7280;
+      --bg:#f7f7f9; --card:#fff; --border:#e5e7eb;
+      --ok:#16a34a; --no:#dc2626;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+    .hero{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{font-size:18px;margin:0}
+    .hero .hint{margin-left:auto;color:var(--muted);font-size:12px}
+
+    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px}
+    .toolbar .spacer{flex:1}
+    .toolbar input[type="text"], .toolbar select{border:1px solid var(--border);border-radius:6px;padding:7px 9px;font:inherit}
+    .btn{display:inline-flex;align-items:center;gap:6px;background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn--ghost{background:#fff;color:var(--brand-ink);border:1px solid var(--border)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden}
+    .tblwrap{overflow:auto;max-height:70vh}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.02em;color:var(--muted);padding:10px}
+    tbody td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
+    tbody tr:nth-child(odd){background:#fcfcfe}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff}
+    .badge--ok{background:var(--ok)}
+    .badge--no{background:var(--no)}
+    .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    .muted{color:var(--muted)}
+    .pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:10px;color:var(--muted)}
+    .pagination a{color:var(--brand-ink);text-decoration:none;font-weight:600}
+    .w120{min-width:120px}
+    .w150{min-width:150px}
+    .w200{min-width:200px}
+  </style>
 </head>
 <body>
-  <!-- White banner header (same vibe as catalogue) -->
-  <header>
-    <img src="/static/bnp_logo.png" class="logo" alt="BNP">
-    <h1>Assets (inventaire)</h1>
-  </header>
-
-  <div class="content">
-    <!-- Toolbar: search + per-page + actions -->
-    <form method="get" action="/assets" class="toolbar">
-      <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (serial, CFI, modèle, PO, client)">
-      <div class="spacer"></div>
-      <label>Par page
-        <select name="per_page" onchange="this.form.submit()">
-          {% for n in [10,20,50,100] %}
-            <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <button class="btn btn--primary" type="submit">Chercher</button>
-      <a class="btn" href="/">Accueil</a>
-      <input type="hidden" name="page" value="1">
-    </form>
-
-    <!-- Table card with horizontal scroll for many columns -->
-    <div class="card table-wrap">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Date ajout</th>
-            <th>Serial</th>
-            <th>CFI code</th>
-            <th>Région</th>
-            <th>CFI name</th>
-            <th>Client #</th>
-            <th>Client</th>
-            <th>CPU</th>
-            <th>Sockets</th>
-            <th>Cœurs</th>
-            <th>Modèle</th>
-            <th>Adresse client</th>
-            <th>Code postal</th>
-            <th>Pays</th>
-            <th>Order #</th>
-            <th>PO</th>
-            <th>BMC MAC</th>
-            <th>Mémoire (MB)</th>
-            <th>HBA</th>
-            <th>BOSS</th>
-            <th>PERC</th>
-            <th>NVMe</th>
-            <th>GPU</th>
-            <th>Disques (JSON)</th>
-            <th>MAC/NIC (JSON)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% macro yesno(v) -%}
-            {# normalize booleans: treat 'YES','OUI','1', True as yes #}
-            {% set s = (v|string).strip().lower() %}
-            {% if v in [True, 1] or s in ['yes', 'oui', 'true', '1'] %}
-              <span class="badge badge--yes">Oui</span>
-            {% elif v in [False, 0] or s in ['no', 'non', 'false', '0'] %}
-              <span class="badge badge--no">Non</span>
-            {% else %}
-              <span class="badge badge--neutral">{{ v if v is not none else '—' }}</span>
-            {% endif %}
-          {%- endmacro %}
-
-          {% for a in assets %}
-          <tr>
-            <td>{{ a.id }}</td>
-            <td>{{ a.date_add }}</td>
-            <td>{{ a.serial }}</td>
-            <td>{{ a.cfi_code }}</td>
-            <td>{{ a.region }}</td>
-            <td>{{ a.cfi_name }}</td>
-            <td>{{ a.customer_number }}</td>
-            <td>{{ a.customer_name }}</td>
-            <td>{{ a.cpu }}</td>
-            <td>{{ a.sockets }}</td>
-            <td>{{ a.cores }}</td>
-            <td>{{ a.model }}</td>
-            <td>{{ a.customer_address }}</td>
-            <td>{{ a.postcode }}</td>
-            <td>{{ a.country }}</td>
-            <td>{{ a.order_number }}</td>
-            <td>{{ a.po_number }}</td>
-            <td><code>{{ a.bmc_mac }}</code></td>
-            <td>{{ a.memory }}</td>
-            <td>{{ yesno(a.hba) }}</td>
-            <td>{{ yesno(a.boss) }}</td>
-            <td>{{ yesno(a.perc) }}</td>
-            <td>{{ yesno(a.nvme) }}</td>
-            <td>{{ yesno(a.gpu) }}</td>
-            <td title="{{ a.hdd_json }}">{{ a.hdd_json }}</td>
-            <td title="{{ a.mac_nic_json }}">{{ a.mac_nic_json }}</td>
-          </tr>
-          {% endfor %}
-          {% if assets|length == 0 %}
-            <tr><td colspan="26" class="muted">Aucun enregistrement.</td></tr>
-          {% endif %}
-        </tbody>
-      </table>
+  <div class="shell">
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP" />
+      <h1>Assets (inventaire)</h1>
+      <div class="hint">Liste issue de <span class="mono">T_AssetReport</span></div>
     </div>
 
-    <!-- Pagination -->
-    <div class="pagination">
-      {% set last = (total // per_page) + (1 if (total % per_page) else 0) %}
-      <span>Total: {{ total }}</span>
-      {% if page > 1 %}
-        <a href="/assets?page={{ page-1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Précédent</a>
-      {% endif %}
-      <span>Page {{ page }} / {{ last if last>0 else 1 }}</span>
-      {% if page < last %}
-        <a href="/assets?page={{ page+1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Suivant</a>
-      {% endif %}
+    <form method="get" action="/assets" class="toolbar">
+      <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (serial, CFI, modèle, PO, client)" />
+      <div class="spacer"></div>
+      <label class="muted">Par page</label>
+      <select name="per_page" onchange="this.form.submit()">
+        {% for n in [10,20,50,100] %}
+          <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn">Chercher</button>
+      <a class="btn btn--ghost" href="/">Accueil</a>
+    </form>
+
+    <div class="card">
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="w120">ID</th>
+              <th class="w150">Date ajout</th>
+              <th class="w150">Serial</th>
+              <th>CFI code</th>
+              <th>Région</th>
+              <th class="w200">CFI name</th>
+              <th>Client #</th>
+              <th class="w200">Client</th>
+              <th class="w200">CPU</th>
+              <th>Sockets</th>
+              <th>Cœurs</th>
+              <th>Modèle</th>
+              <th class="w200">Adresse client</th>
+              <th>Code postal</th>
+              <th>Pays</th>
+              <th>Order #</th>
+              <th>PO</th>
+              <th class="w150">BMC MAC</th>
+              <th>Mémoire (MB)</th>
+              <th>HBA</th>
+              <th>BOSS</th>
+              <th>PERC</th>
+              <th>NVMe</th>
+              <th>GPU</th>
+              <th class="w200">Disques (JSON)</th>
+              <th class="w200">NIC/MAC (JSON)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in assets %}
+            <tr>
+              <td>{{ a[0] }}</td>
+              <td>{{ a[1] }}</td>
+              <td class="mono">{{ a[2] }}</td>
+              <td class="mono">{{ a[3] }}</td>
+              <td>{{ a[4] }}</td>
+              <td>{{ a[5] }}</td>
+              <td class="mono">{{ a[6] }}</td>
+              <td>{{ a[7] }}</td>
+              <td>{{ a[8] }}</td>
+              <td>{{ a[9] }}</td>
+              <td>{{ a[10] }}</td>
+              <td class="mono">{{ a[11] }}</td>
+              <td>{{ a[12] }}</td>
+              <td>{{ a[13] }}</td>
+              <td>{{ a[14] }}</td>
+              <td class="mono">{{ a[15] }}</td>
+              <td class="mono">{{ a[16] }}</td>
+              <td class="mono">{{ a[17] }}</td>
+              <td class="mono">{{ a[18] }}</td>
+              <td><span class="badge {% if a[19] %}badge--ok{% else %}badge--no{% endif %}">{{ 'Oui' if a[19] else 'Non' }}</span></td>
+              <td><span class="badge {% if a[20] %}badge--ok{% else %}badge--no{% endif %}">{{ 'Oui' if a[20] else 'Non' }}</span></td>
+              <td><span class="badge {% if a[21] %}badge--ok{% else %}badge--no{% endif %}">{{ 'Oui' if a[21] else 'Non' }}</span></td>
+              <td><span class="badge {% if a[22] %}badge--ok{% else %}badge--no{% endif %}">{{ 'Oui' if a[22] else 'Non' }}</span></td>
+              <td><span class="badge {% if a[23] %}badge--ok{% else %}badge--no{% endif %}">{{ 'Oui' if a[23] else 'Non' }}</span></td>
+              <td><span title="{{ a[24] }}">{{ a[24][:24] ~ ('…' if a[24] and a[24]|length>24 else '') }}</span></td>
+              <td><span title="{{ a[25] }}">{{ a[25][:24] ~ ('…' if a[25] and a[25]|length>24 else '') }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <span>Total: {{ total }}</span>
+        <div class="spacer"></div>
+        {% if page > 1 %}
+          <a href="/assets?q={{ q }}&per_page={{ per_page }}&page={{ page - 1 }}">Précédent</a>
+        {% endif %}
+        <span>Page {{ page }}</span>
+        {% if (page * per_page) < total %}
+          <a href="/assets?q={{ q }}&per_page={{ per_page }}&page={{ page + 1 }}">Suivant</a>
+        {% endif %}
+      </div>
     </div>
   </div>
 </body>
