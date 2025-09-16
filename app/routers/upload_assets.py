@@ -1,201 +1,179 @@
-# app/routers/upload_assets.py
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, Response
 from starlette.templating import Jinja2Templates
+from pathlib import Path
+from typing import Tuple, List
+import os
+import csv
 
-import asyncio, io, csv, json, re
-from typing import List, Dict, Any
+from app.db.database import get_connection  # <- same helper you already use elsewhere
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-# ---------- single-upload lock (OK for 1 replica) ----------
-_in_progress = False
-_lock = asyncio.Lock()
-async def guard_start():
-    global _in_progress
-    async with _lock:
-        if _in_progress:
-            raise HTTPException(status_code=409, detail="Un autre fichier est en cours de traitement.")
-        _in_progress = True
-async def guard_end():
-    global _in_progress
-    async with _lock:
-        _in_progress = False
+# -------- Paths from env (already present in your deployment)
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
+ASSETS_JSON_PATH = Path(os.getenv("JSON_OUTPUT_PATH", "/app/uploads/assets_transformed.json"))
 
-# ---------- strict schema ----------
-SCHEMA_BASE = [
-    "SerialNumber","CFCode","region","CfnName","CustomerNumber","ProcessorType",
-    "NumberSocket","NumberCore","Model","CustomerName","CustomerAddress",
-    "PostCode","Country","OrderNumber","PONumber","BmcMacAddress",
-    "Memory","HBA","BOSS","PERC","NVME","GPU"
-]
-# require at least one of each; allow these index ranges
-GROUP_BOUNDS = {"HDD": 12, "EMBMAC": 3, "NIC": 6}
-GROUP_RE = re.compile(r"^(hdd|embmac|nic)\s*_?\s*(\d+)$", re.IGNORECASE)
+# -------- Helpers
 
-# ---------- helpers ----------
-EMPTY_MARKERS = {"", "NA", "N/A", "NULL"}
+def _ensure_dir(p: Path) -> None:
+    p.mkdir(parents=True, exist_ok=True)
 
-def _norm_header(col: str) -> str:
-    # strip spaces + strip BOM if present
-    return col.strip().lstrip("\ufeff")
-
-def _to_none(v: Any):
-    if v is None: return None
-    s = str(v).strip()
-    return None if s == "" or s.upper() in EMPTY_MARKERS else s
-
-def _is_blank_row(row: List[Any]) -> bool:
-    for v in row:
-        if v is None:
-            continue
-        s = str(v).strip()
-        if s.upper() not in EMPTY_MARKERS and s != "":
-            return False
-    return True
-
-def _is_empty_asset(obj: Dict[str, Any]) -> bool:
-    base_all_none = all(obj.get(k) is None for k in SCHEMA_BASE)
-    groups_empty = all(not obj.get(g.lower()) for g in GROUP_BOUNDS.keys())
-    return base_all_none and groups_empty
-
-def read_csv(blob: bytes, encoding: str, delimiter: str):
-    text = blob.decode(encoding, errors="replace")
-    first_line = text.splitlines()[0] if text else ""
-
-    # auto-detect delimiter if the first line clearly uses ; or \t
-    chosen = delimiter
-    if delimiter == ",":
-        if first_line.count(";") > first_line.count(","):
-            chosen = ";"
-        elif first_line.count("\t") > max(first_line.count(","), first_line.count(";")):
-            chosen = "\t"
-
-    f = io.StringIO(text, newline="")
-    reader = csv.reader(f, delimiter=chosen)
-    rows = list(reader)
-    if not rows:
-        raise HTTPException(status_code=422, detail="CSV vide.")
-    header = [_norm_header(c) for c in rows[0]]
-    body = rows[1:]
-    return header, body
-
-def validate_headers_strict(header: List[str]) -> None:
-    base_required = set(SCHEMA_BASE)
-    base_seen = set()
-    group_counts = {g: 0 for g in GROUP_BOUNDS.keys()}
-    unknown, dups = [], []
-    seen_once = set()
-
-    for col in header:
-        if col in base_required:
-            if col in seen_once: dups.append(col)
-            seen_once.add(col)
-            base_seen.add(col)
-            continue
-        m = GROUP_RE.match(col.replace(" ", ""))
-        if m:
-            g = m.group(1).upper()
-            idx = int(m.group(2))
-            if g not in GROUP_BOUNDS:
-                unknown.append(col); continue
-            if not (1 <= idx <= GROUP_BOUNDS[g]):
-                raise HTTPException(status_code=422, detail=f"Colonne {col} hors plage pour {g} (1..{GROUP_BOUNDS[g]}).")
-            group_counts[g] += 1
-        else:
-            unknown.append(col)
-
-    missing_base = sorted(list(base_required - base_seen))
-    missing_groups = [g for g, c in group_counts.items() if c < 1]
-
-    if dups:
-        raise HTTPException(status_code=422, detail=f"En-têtes dupliqués: {', '.join(dups)}.")
-    if missing_base:
-        raise HTTPException(status_code=422, detail=f"Colonnes obligatoires manquantes: {', '.join(missing_base)}.")
-    if missing_groups:
-        raise HTTPException(status_code=422, detail=f"Il faut au moins une colonne pour chacun: {', '.join(missing_groups)}.")
-    if unknown:
-        raise HTTPException(status_code=422, detail=f"Colonnes non autorisées: {', '.join(unknown)}.")
-
-def transform_row_to_grouped_maps(header: List[str], row: List[str]) -> Dict[str, Any]:
+def is_locked() -> bool:
     """
-    Output structure:
-    {
-      ...base fields...,
-      "hdd":    {"hdd1": "...", "hdd2": "...", ...},
-      "embmac": {"embmac1": "...", ...},
-      "nic":    {"nic1": "...", ...}
-    }
+    Page is locked if the JSON file already exists on the PV.
     """
-    out: Dict[str, Any] = {}
+    try:
+        return ASSETS_JSON_PATH.exists() and ASSETS_JSON_PATH.is_file()
+    except Exception:
+        return False
 
-    # build group dicts
-    grouped: Dict[str, Dict[str, Any]] = { "hdd": {}, "embmac": {}, "nic": {} }
+def _fetch_assets(page: int, per_page: int) -> Tuple[int, List[tuple]]:
+    """
+    Small preview: show the latest assets at the bottom (no search).
+    """
+    offset = (page - 1) * per_page
+    conn = get_connection()
+    cur = conn.cursor()
 
-    for i, raw in enumerate(header):
-        col = raw.replace(" ", "")
-        val = _to_none(row[i] if i < len(row) else None)
-        m = GROUP_RE.match(col)
-        if m:
-            g = m.group(1).lower()              # hdd / embmac / nic
-            idx = int(m.group(2))
-            key = f"{g}{idx}"                   # e.g. "hdd3"
-            grouped[g][key] = val
-        else:
-            out[raw] = val  # keep original header casing for base fields
+    # Count
+    cur.execute("SELECT COUNT(*) FROM supchain.t_asset_report;")
+    total = cur.fetchone()[0]
 
-    out["hdd"] = grouped["hdd"]
-    out["embmac"] = grouped["embmac"]
-    out["nic"] = grouped["nic"]
-    return out
+    # Page rows: pick the most useful columns for the preview
+    cur.execute(
+        """
+        SELECT
+          t_asset_report_id,
+          t_asset_report_date_add,
+          t_asset_report_serial_number,
+          t_asset_report_cfi_code,
+          t_asset_report_region,
+          t_asset_report_cfi_name,
+          t_asset_report_customer_number,
+          t_asset_report_customer_name,
+          t_asset_report_processor_type,
+          t_asset_report_number_socket,
+          t_asset_report_number_core,
+          t_asset_report_model,
+          t_asset_report_customer_address,
+          t_asset_report_postcode,
+          t_asset_report_country,
+          t_asset_report_order_number,
+          t_asset_report_po_number,
+          t_asset_report_bmc_mac_address,
+          t_asset_report_memory,
+          t_asset_report_hba,
+          t_asset_report_boss,
+          t_asset_report_perc,
+          t_asset_report_nvme,
+          t_asset_report_gpu
+        FROM supchain.t_asset_report
+        ORDER BY t_asset_report_id DESC
+        LIMIT %s OFFSET %s
+        """,
+        (per_page, offset),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return total, rows
 
-# ===================== ROUTES =====================
+# -------- Routes
 
-@router.get(path="/assets/upload", response_class=HTMLResponse)
-async def get_upload_page(request: Request):
-    return templates.TemplateResponse("upload_assets.html", {"request": request})
+@router.get("/assets/upload", response_class=HTMLResponse)
+def get_assets_upload_page(
+    request: Request,
+    page: int = 1,
+    per_page: int = 10,
+):
+    total, rows = _fetch_assets(page, per_page)
+    return templates.TemplateResponse(
+        "assets_upload.html",
+        {
+            "request": request,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "rows": rows,
+            "locked": is_locked(),
+            "lock_path": str(ASSETS_JSON_PATH),
+            "message_ok": None,
+            "message_error": None,
+        },
+    )
 
-@router.post(path="/assets/upload", response_class=HTMLResponse)
-async def upload_csv(
+@router.post("/assets/upload", response_class=HTMLResponse)
+async def post_assets_upload(
     request: Request,
     file: UploadFile = File(...),
-    delimiter: str = Form(","),        # defaults; your form sends hidden fields
-    encoding: str = Form("utf-8"),
+    page: int = Form(1),
+    per_page: int = Form(10),
 ):
-    if file.content_type not in ["text/csv", "application/vnd.ms-excel"]:
-        msg = "✘ Le fichier doit être un CSV."
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": msg}, status_code=400)
-
-    try:
-        await guard_start()
-    except HTTPException as he:
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": he.detail}, status_code=409)
-
-    try:
-        blob = await file.read()
-        if len(blob) > 20 * 1024 * 1024:
-            msg = "✘ Fichier trop volumineux (>20 Mo)."
-            return templates.TemplateResponse("upload_assets.html", {"request": request, "message": msg}, status_code=413)
-
-        header, rows = read_csv(blob, encoding, delimiter)
-        validate_headers_strict(header)
-
-        # drop blank rows, transform, drop fully-empty assets
-        clean_rows = [r for r in rows if not _is_blank_row(r)]
-        objs = (transform_row_to_grouped_maps(header, r) for r in clean_rows)
-        payload = [o for o in objs if not _is_empty_asset(o)]
-
-        data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-        return StreamingResponse(
-            io.BytesIO(data),
-            media_type="application/json",
-            headers={"Content-Disposition": 'attachment; filename="assets_transformed.json"'}
+    # Lock guard (identical logic to Ajout de commande)
+    if is_locked():
+        total, rows = _fetch_assets(page, per_page)
+        return templates.TemplateResponse(
+            "assets_upload.html",
+            {
+                "request": request,
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "rows": rows,
+                "locked": True,
+                "lock_path": str(ASSETS_JSON_PATH),
+                "message_ok": None,
+                "message_error": "Import verrouillé : un lot d’assets est déjà en cours (JSON présent).",
+            },
         )
 
-    except HTTPException as he:
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": he.detail}, status_code=he.status_code)
-    except Exception as e:
-        return templates.TemplateResponse("upload_assets.html", {"request": request, "message": f"Erreur: {e}"}, status_code=500)
-    finally:
-        await guard_end()
+    # Save the uploaded CSV to the PV
+    _ensure_dir(UPLOAD_DIR)
+    target_csv = UPLOAD_DIR / "assets_upload.csv"
+    content = await file.read()
+    target_csv.write_bytes(content)
+
+    # (Optional) Quick CSV validation – non-blocking, just to display a small hint
+    csv_hint = None
+    try:
+        with target_csv.open("r", encoding="utf-8", newline="") as fh:
+            reader = csv.reader(fh)
+            _ = next(reader, None)  # try read header/first row
+            csv_hint = f"Fichier reçu : {file.filename} ({len(content)} octets)."
+    except Exception:
+        csv_hint = f"Fichier reçu : {file.filename}."
+
+    total, rows = _fetch_assets(page, per_page)
+    return templates.TemplateResponse(
+        "assets_upload.html",
+        {
+            "request": request,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "rows": rows,
+            "locked": False,
+            "lock_path": str(ASSETS_JSON_PATH),
+            "message_ok": csv_hint or "Fichier uploadé avec succès.",
+            "message_error": None,
+        },
+    )
+
+# ---- JSON control endpoints (same spirit as assets/warehouse pages)
+
+@router.get("/assets/json")
+def get_assets_json():
+    if ASSETS_JSON_PATH.exists():
+        return Response(
+            ASSETS_JSON_PATH.read_text(encoding="utf-8"),
+            media_type="application/json",
+        )
+    return Response(status_code=404)
+
+@router.delete("/assets/json")
+def delete_assets_json():
+    if ASSETS_JSON_PATH.exists():
+        ASSETS_JSON_PATH.unlink()
+        return {"deleted": str(ASSETS_JSON_PATH)}
+    return {"deleted": False, "reason": "not found"}
