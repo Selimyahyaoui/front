@@ -1,63 +1,120 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Liste des VLANs</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <title>VLANs disponibles</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    /* page-local helpers to keep big tables tidy */
+    .shell { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .toolbar { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
+    .btn { padding:8px 12px; border:1px solid #ddd; background:#fff; border-radius:8px; cursor:pointer; }
+    .btn-ghost { background:#f6f7f8; }
+    .card { background:#fff; border:1px solid #e6e8eb; border-radius:12px; padding:16px; }
+    .tbl { width:100%; border-collapse:collapse; }
+    .tbl th, .tbl td { padding:10px 12px; border-bottom:1px solid #eef0f2; vertical-align:top; }
+    .tbl thead th { background:#f7f8f9; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.02em; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #e6e8eb; background:#fff; }
+    .badge-yes { background:#eaf7eb; color:#246b2c; border-color:#cfe9d2; }
+    .badge-no  { background:#fcebea; color:#b3261e; border-color:#f4c7c4; }
+    .table-wrap { overflow-x:auto; }
+    .grid { display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center; }
+    header { background:#fff; border-bottom:1px solid #e6e8eb; }
+    .logo { height:32px; }
+    h1 { margin:0; font-size:20px; }
+    .header-row { display:flex; gap:12px; align-items:center; padding:12px 16px; }
+    .spacer { flex:1; }
+    .pagination { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
+  </style>
 </head>
 <body>
-    <header>
-        <img src="/static/bnp_logo.png" class="logo" alt="BNP">
-        <h1>VLANs disponibles</h1>
-    </header>
-
-    <div class="content">
-        <form method="get" action="/vlans">
-            <label for="per_page">Afficher</label>
-            <select name="per_page" id="per_page" onchange="this.form.submit()">
-                <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-                <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
-                <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-                <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
-            </select>
-            <input type="hidden" name="page" value="{{ page }}">
-            entrées
-        </form>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>VLAN ID</th>
-                    <th>Nom</th>
-                    <th>Subnet</th>
-                    <th>Location</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for vlan in vlans %}
-                <tr>
-                    <td>{{ vlan[0] }}</td>
-                    <td>{{ vlan[1] }}</td>
-                    <td>{{ vlan[2] }}</td>
-                    <td>{{ vlan[3] }}</td>
-                    <td>{{ vlan[4] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="pagination">
-            {% if page > 1 %}
-            <a href="/vlans?page={{ page - 1 }}&per_page={{ per_page }}">← Précédent</a>
-            {% endif %}
-            <span>Page {{ page }}</span>
-            {% if (page * per_page) < total %}
-            <a href="/vlans?page={{ page + 1 }}&per_page={{ per_page }}">Suivant →</a>
-            {% endif %}
+  <header>
+    <div class="header-row">
+      <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo" />
+      <h1>VLANs disponibles</h1>
+      <div class="spacer"></div>
+      <form class="grid" method="get" action="/vlans">
+        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (id, zone, réseau…)" />
+        <div class="grid" style="grid-template-columns: auto auto;">
+          <label for="per_page">Par page</label>
+          <select id="per_page" name="per_page">
+            <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
+            <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
+            <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+          </select>
         </div>
-
-        <p><a href="/">← Retour à l'accueil</a></p>
+        <button class="btn" type="submit">Chercher</button>
+        <a class="btn btn-ghost" href="/">Accueil</a>
+      </form>
     </div>
+  </header>
+
+  <div class="shell">
+    <div class="card">
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Date ajout</th>
+              <th>VLAN target</th>
+              <th>Commentaires</th>
+              <th>VLAN ID</th>
+              <th>Zone physique</th>
+              <th>Environnement</th>
+              <th>Trunked</th>
+              <th>Natif</th>
+              <th>LACP</th>
+              <th>Scope Infoblox</th>
+              <th>AP Code ID</th>
+              <th>Scope Infoblox MKP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vlans %}
+            <tr>
+              <td>{{ v[0] }}</td>
+              <td>{{ v[1] }}</td>
+              <td>{{ v[2] }}</td>
+              <td>{{ v[3] }}</td>
+              <td>{{ v[4] }}</td>
+              <td>{{ v[5] }}</td>
+              <td>{{ v[6] }}</td>
+              <td>
+                <span class="pill {% if v[7] %}badge-yes{% else %}badge-no{% endif %}">
+                  {% if v[7] %}Oui{% else %}Non{% endif %}
+                </span>
+              </td>
+              <td>
+                <span class="pill {% if v[8] %}badge-yes{% else %}badge-no{% endif %}">
+                  {% if v[8] %}Oui{% else %}Non{% endif %}
+                </span>
+              </td>
+              <td>
+                <span class="pill {% if v[9] %}badge-yes{% else %}badge-no{% endif %}">
+                  {% if v[9] %}Oui{% else %}Non{% endif %}
+                </span>
+              </td>
+              <td>{{ v[10] }}</td>
+              <td>{{ v[11] }}</td>
+              <td>{{ v[12] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        {% if page > 1 %}
+          <a class="btn btn-ghost" href="/vlans?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q }}">Précédent</a>
+        {% endif %}
+        <span style="align-self:center;">Page {{ page }}</span>
+        {% if (page * per_page) < total %}
+          <a class="btn btn-ghost" href="/vlans?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q }}">Suivant</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </body>
 </html>
