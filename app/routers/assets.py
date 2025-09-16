@@ -1,13 +1,14 @@
+# app/routers/assets.py
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
 
-from app.db.database import get_connection  # same helper you use elsewhere
+from app.db.database import get_connection  # reuse your shared helper
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-# Full column list from t_asset_report
+# Columns selected from t_asset_report (order matters; keep in sync with template)
 COLS = [
     "t_asset_report_id",
     "t_asset_report_date_add",
@@ -38,20 +39,21 @@ COLS = [
 ]
 SELECT_LIST = ", ".join(COLS)
 
+KEYS = [
+    "id","date_add","serial","cfi_code","region","cfi_name",
+    "customer_number","customer_name","cpu","sockets","cores","model",
+    "customer_address","postcode","country","order_number","po_number",
+    "bmc_mac","memory","hba","boss","perc","nvme","gpu",
+    "hdd_json","mac_nic_json",
+]
+
 def _rows_to_dicts(rows):
-    keys = [
-        "id","date_add","serial","cfi_code","region","cfi_name",
-        "customer_number","customer_name","cpu","sockets","cores","model",
-        "customer_address","postcode","country","order_number","po_number",
-        "bmc_mac","memory","hba","boss","perc","nvme","gpu",
-        "hdd_json","mac_nic_json",
-    ]
-    return [{k: r[i] for i, k in enumerate(keys)} for r in rows]
+    return [{k: r[i] for i, k in enumerate(KEYS)} for r in rows]
 
 @router.get("/assets", response_class=HTMLResponse)
 def list_assets(
     request: Request,
-    q: str | None = Query(None, description="Search text"),
+    q: str | None = Query(None, description="Rechercher (serial, CFI, modèle, PO, client)"),
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
 ):
