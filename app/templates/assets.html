@@ -7,9 +7,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
-<header class="hero hero--green">
+
+<header class="hero">
   <div class="hero__brand">
-    <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo">
+    <img src="/static/bnp_logo.png" alt="BNP" class="logo">
     <div>
       <h1>Assets (inventaire)</h1>
       <div class="sub">Liste issue de <code>T_AssetReport</code></div>
@@ -72,50 +73,36 @@
         <tr>
           <td>{{ a.id }}</td>
           <td>{{ a.date_add }}</td>
-          <td>{{ a.serial_number }}</td>
+          <td>{{ a.serial }}</td>
           <td>{{ a.cfi_code }}</td>
           <td>{{ a.region }}</td>
           <td>{{ a.cfi_name }}</td>
           <td>{{ a.customer_number }}</td>
           <td>{{ a.customer_name }}</td>
-          <td>{{ a.processor_type }}</td>
-          <td>{{ a.number_socket }}</td>
-          <td>{{ a.number_core }}</td>
+          <td>{{ a.cpu }}</td>
+          <td>{{ a.sockets }}</td>
+          <td>{{ a.cores }}</td>
           <td>{{ a.model }}</td>
           <td>{{ a.customer_address }}</td>
           <td>{{ a.postcode }}</td>
           <td>{{ a.country }}</td>
           <td>{{ a.order_number }}</td>
           <td>{{ a.po_number }}</td>
-          <td><code>{{ a.bmc_mac_address }}</code></td>
+          <td><code>{{ a.bmc_mac }}</code></td>
           <td>{{ a.memory }}</td>
-          <td>
-            <span class="badge {% if a.hba %}badge--yes{% else %}badge--no{% endif %}">
-              {% if a.hba %}Oui{% else %}Non{% endif %}
-            </span>
-          </td>
-          <td>
-            <span class="badge {% if a.boss %}badge--yes{% else %}badge--no{% endif %}">
-              {% if a.boss %}Oui{% else %}Non{% endif %}
-            </span>
-          </td>
-          <td>
-            <span class="badge {% if a.perc %}badge--yes{% else %}badge--no{% endif %}">
-              {% if a.perc %}Oui{% else %}Non{% endif %}
-            </span>
-          </td>
-          <td>
-            <span class="badge {% if a.nvme %}badge--yes{% else %}badge--no{% endif %}">
-              {% if a.nvme %}Oui{% else %}Non{% endif %}
-            </span>
-          </td>
-          <td>
-            <span class="badge {% if a.gpu %}badge--yes{% else %}badge--no{% endif %}">
-              {% if a.gpu %}Oui{% else %}Non{% endif %}
-            </span>
-          </td>
-          <td class="truncate" title="{{ a.list_hdd_json_format }}">{{ a.list_hdd_json_format }}</td>
-          <td class="truncate" title="{{ a.list_mac_nic_json_format }}">{{ a.list_mac_nic_json_format }}</td>
+
+          {% macro yesno(v) -%}
+            <span class="badge {{ 'badge--yes' if v else 'badge--no' }}">{{ 'Oui' if v else 'Non' }}</span>
+          {%- endmacro %}
+
+          <td>{{ yesno(a.hba) }}</td>
+          <td>{{ yesno(a.boss) }}</td>
+          <td>{{ yesno(a.perc) }}</td>
+          <td>{{ yesno(a.nvme) }}</td>
+          <td>{{ yesno(a.gpu) }}</td>
+
+          <td class="truncate" title="{{ a.hdd_json }}">{{ a.hdd_json }}</td>
+          <td class="truncate" title="{{ a.mac_nic_json }}">{{ a.mac_nic_json }}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -134,5 +121,6 @@
     <span class="hint">Total: {{ total }}</span>
   </div>
 </main>
+
 </body>
 </html>
