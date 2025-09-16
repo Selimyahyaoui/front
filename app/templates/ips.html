@@ -1,101 +1,124 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Liste des IPs DHCP</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <title>IPs disponibles via DHCP</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
-    .toolbar .spacer{flex:1}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid #e5e7eb;
-      font-size:12px;text-transform:uppercase;letter-spacing:.02em;color:#6b7280;padding:10px}
-    tbody td{border-bottom:1px solid #f0f2f5;padding:10px}
-    tbody tr:nth-child(odd){background:#fcfcfe}
-    .btn{background:#14823b;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
-    .btn--ghost{background:#fff;color:#14823b;border:1px solid #d1d5db}
-    .pagination{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px}
-    .logo{height:28px;margin-right:8px;vertical-align:middle}
-    header{display:flex;align-items:center;gap:10px;margin:14px 0}
-    .hint{color:#6b7280;font-size:12px;margin-left:auto}
-    input[type="text"]{padding:6px 8px;border:1px solid #d1d5db;border-radius:6px}
-    select{padding:6px 8px;border:1px solid #d1d5db;border-radius:6px}
+    /* Reuse the same catalogue look */
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+    .hero{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{font-size:18px;margin:0}
+    .hero .pill{margin-left:auto;font-size:12px;color:#6b7280}
+
+    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .toolbar .spacer{flex:1}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
+    .btn-primary{background:#16a34a;color:#fff;border-color:#16a34a}
+    .input{border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;min-width:240px}
+    .select{border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px}
+
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;padding:10px}
+    tbody td{border-bottom:1px solid #e5e7eb;padding:10px}
+    tbody tr:nth-child(odd){background:#fcfcfe}
+
+    .badges{font-size:13px;font-weight:700;border-radius:999px;padding:2px 10px;display:inline-block}
+    .yes{background:#e6f9ed;color:#0f6d3d;border:1px solid #bfead0}
+    .no{background:#fdeaea;color:#8a1d1d;border:1px solid #f5c2c2}
+
+    .pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px}
+    .pagination a{border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;text-decoration:none;color:#111827}
+    .muted{color:#6b7280}
   </style>
 </head>
 <body>
-<div class="shell">
-  <header>
-    <img src="/static/bnp_logo.png" class="logo" alt="BNP">
-    <h1 style="margin:0;font-size:20px">IPs disponibles via DHCP</h1>
-    <div class="hint">Recherche et pagination</div>
-  </header>
+  <div class="shell">
+    <!-- Header banner -->
+    <div class="hero">
+      <img src="/static/bnp_logo.png" alt="BNP">
+      <h1>IPs disponibles via DHCP</h1>
+      <div class="pill muted">Recherche et pagination</div>
+    </div>
 
-  <form method="get" action="/ips" class="toolbar">
-    <label for="per_page">Par page</label>
-    <select name="per_page" id="per_page" onchange="this.form.submit()">
-      <option value="10"  {% if per_page == 10  %}selected{% endif %}>10</option>
-      <option value="20"  {% if per_page == 20  %}selected{% endif %}>20</option>
-      <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
-      <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
-    </select>
+    <!-- Toolbar: search + per page + actions -->
+    <form method="get" action="/ips" class="toolbar">
+      <input type="text" name="q" class="input" placeholder="Chercher (id, réseau, vlan, hostname, site)" value="{{ q or '' }}">
+      <button type="submit" class="btn btn-primary">Chercher</button>
 
-    <div class="spacer"></div>
+      <div class="spacer"></div>
 
-    <input type="text" name="q" value="{{ q or '' }}" placeholder="Chercher (id, réseau, vlan, site, …)">
-    <input type="hidden" name="page" value="1">
-    <button class="btn" type="submit">Chercher</button>
-    <a href="/" class="btn btn--ghost">Accueil</a>
-  </form>
+      <label class="muted">Par page&nbsp;
+        <select name="per_page" class="select" onchange="this.form.submit()">
+          {% for n in [10,20,50,100] %}
+            <option value="{{n}}" {% if per_page==n %}selected{% endif %}>{{n}}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <a class="btn" href="/">Accueil</a>
 
-  <div class="card" style="overflow:auto;max-height:70vh">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Site</th>
-          <th>VLAN ID</th>
-          <th>Réseau</th>
-          <th>Ajouté par</th>
-          <th>Modifié par</th>
-          <th>Dernière maj</th>
-          <th>Date ajout</th>
-          <th>Infoblox / Hostname</th>
-          <th>Disponibilité</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for ip in ips %}
-        <tr>
-          <td>{{ ip[0] }}</td>
-          <td>{{ ip[1] }}</td>
-          <td>{{ ip[2] }}</td>
-          <td>{{ ip[3] }}</td>
-          <td>{{ ip[4] }}</td>
-          <td>{{ ip[5] }}</td>
-          <td>{{ ip[6] }}</td>
-          <td>{{ ip[7] }}</td>
-          <td>{{ ip[8] }}</td>
-          <td>{{ ip[9] }}</td>
-        </tr>
-        {% endfor %}
-        {% if ips|length == 0 %}
-        <tr><td colspan="10" style="text-align:center;color:#6b7280">Aucun résultat</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
+      <!-- preserve current page when searching/changing per_page -->
+      <input type="hidden" name="page" value="{{ page }}">
+    </form>
+
+    <!-- Table -->
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Site</th>
+            <th>VLAN ID</th>
+            <th>Réseau</th>
+            <th>Ajouté par</th>
+            <th>Modifié par</th>
+            <th>Dernière maj</th>
+            <th>Date ajout</th>
+            <th>Infoblox / Hostname</th>
+            <th>Disponibilité</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ip in ips %}
+          <tr>
+            <td>{{ ip.id }}</td>
+            <td>{{ ip.site }}</td>
+            <td>{{ ip.vlan_id }}</td>
+            <td>{{ ip.network }}</td>
+            <td>{{ ip.added_by or 'None' }}</td>
+            <td>{{ ip.changed_by or 'None' }}</td>
+            <td>{{ ip.date_update or 'None' }}</td>
+            <td>{{ ip.date_add or 'None' }}</td>
+            <td>{{ ip.infoblox or '—' }}</td>
+            <td>
+              {% if (ip.availability or '')|upper == 'YES' %}
+                <span class="badges yes">YES</span>
+              {% elif (ip.availability or '')|upper == 'NO' %}
+                <span class="badges no">NO</span>
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      {% set last = (total // per_page) + (1 if (total % per_page) else 0) %}
+      {% if page > 1 %}
+        <a href="/ips?page={{ page-1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Précédent</a>
+      {% endif %}
+      <span class="muted">Page {{ page }}</span>
+      {% if page < last %}
+        <a href="/ips?page={{ page+1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Suivant</a>
+      {% endif %}
+    </div>
   </div>
-
-  <div class="pagination">
-    {% if page > 1 %}
-      <a class="btn btn--ghost" href="/ips?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q }}">← Précédent</a>
-    {% endif %}
-    <span>Page {{ page }}</span>
-    {% if (page * per_page) < total %}
-      <a class="btn btn--ghost" href="/ips?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q }}">Suivant →</a>
-    {% endif %}
-  </div>
-</div>
 </body>
 </html>
