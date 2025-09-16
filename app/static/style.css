@@ -1,86 +1,91 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f5f5f5;
+/* ====== Design tokens ====== */
+:root{
+  --brand:#0a7a45;
+  --brand-ink:#0b5c35;
+  --ink:#1f2937;
+  --muted:#6b7280;
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --border:#e5e7eb;
+  --success:#22c55e;
+  --danger:#ef4444;
+  --warn:#f59e0b;
 }
 
-header {
-    background-color: #00663e;
-    color: white;
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
+/* ====== Base ====== */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
+a{color:var(--brand-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+.content{max-width:1200px;margin:20px auto;padding:0 16px}
+
+/* ====== Header (default: white card) ====== */
+header{
+  max-width:1200px;margin:20px auto 12px;padding:12px 16px;
+  display:flex;align-items:center;gap:12px;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+header .logo{height:32px}
+header h1{font-size:18px;margin:0}
+
+/* Green banner ONLY when header has .hero--green (use on index page) */
+header.hero--green{
+  background:linear-gradient(0deg, #0b6a3e, #0b6a3e);
+  color:#fff;border-color:transparent;box-shadow:none;
+}
+header.hero--green h1{color:#fff}
+
+/* ====== Toolbar (optional small row under header) ====== */
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.toolbar .spacer{flex:1}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;color:var(--brand-ink);padding:6px 10px;border-radius:8px;cursor:pointer}
+.btn--primary{background:var(--brand);color:#fff;border-color:transparent}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+
+/* ====== Cards & tables ====== */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);padding:10px;
 }
 
-header img.logo {
-    height: 40px;
-    margin-right: 15px;
+/* Make all wide tables scroll nicely */
+.table-wrap{overflow:auto;border-radius:8px}
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);min-width:800px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{
+  background:#fbfbfc;position:sticky;top:0;z-index:1;
+  text-transform:uppercase;font-size:12px;color:var(--muted);
 }
+tbody tr:nth-child(odd){background:#fcfcfe}
 
-header h1 {
-    font-size: 1.5em;
-    margin: 0;
+/* ====== Pagination ====== */
+.pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin:12px 0}
+.pagination a{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff}
+.pagination span{color:var(--muted)}
+
+/* ====== Forms (per-page/select/search) ====== */
+form label, form select, form input[type="text"]{font-size:14px}
+input[type="text"], select{
+  border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff;outline:none;
 }
+input[type="text"]:focus, select:focus{border-color:#c7d7cb;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
 
-.content {
-    padding: 20px;
-}
+/* ====== Status badges ====== */
+.badge{display:inline-flex;align-items:center;font-weight:700;border-radius:999px;padding:4px 10px;font-size:12px}
+.badge--yes{background:rgba(34,197,94,.12);color:var(--success);border:1px solid rgba(34,197,94,.25)}
+.badge--no{background:rgba(239,68,68,.10);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
+.badge--neutral{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb}
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background-color: white;
-}
+/* Backward-compat with your existing “status-*” classes */
+.status{color:#fff;border-radius:6px;padding:4px 8px;font-weight:700}
+.status-delivered{background:var(--success)}
+.status-cancelled{background:var(--danger)}
+.status-pending{background:var(--warn)}
 
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-}
-
-th {
-    background-color: #eeeeee;
-    font-weight: bold;
-}
-
-.status {
-    padding: 4px 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    color: white;
-}
-
-.status-delivered {
-    background-color: #4CAF50; /* green */
-}
-
-.status-cancelled {
-    background-color: #f44336; /* red */
-}
-
-.status-pending {
-    background-color: #ff9800; /* orange */
-}
-
-.pagination {
-    margin-top: 20px;
-    text-align: center;
-}
-
-.pagination a {
-    margin: 0 10px;
-    text-decoration: none;
-    color: #00663e;
-    font-weight: bold;
-}
-
-.pagination span {
-    font-weight: bold;
-}
-
-form label, form select {
-    margin-right: 10px;
-    font-size: 14px;
+/* Small screens */
+@media (max-width: 720px){
+  header{margin:12px 8px}
+  .content{padding:0 8px}
+  th{font-size:11px}
 }
