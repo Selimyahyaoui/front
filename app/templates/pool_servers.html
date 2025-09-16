@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pool serveurs</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    /* page-specific helpers (minimal) */
+    .card { background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
+    .toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
+    .field { display:flex; align-items:center; gap:6px; }
+    .pill { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .pill-yes { background:#e8f5e9; color:#2e7d32; }
+    .pill-no  { background:#fdecea; color:#c62828; }
+    .scroll-x { overflow-x:auto; }
+    table.tbl { width:max-content; min-width:100%; border-collapse:collapse; }
+    .tbl th, .tbl td { border-bottom:1px solid #eee; padding:10px 12px; white-space:nowrap; }
+    .tbl thead th { position:sticky; top:0; background:#fafafa; z-index:1; }
+    header { background:#fff; color:#222; border-bottom:1px solid #eee; }
+    header h1 { color:#222; }
+    .btn { border:1px solid #ddd; padding:6px 10px; border-radius:6px; background:#fff; cursor:pointer; }
+    .btn-primary { background:#0a7f4a; color:#fff; border-color:#0a7f4a; }
+  </style>
+</head>
+<body>
+<header>
+  <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo" />
+  <h1>Pool serveurs</h1>
+</header>
+
+<div class="content">
+  <div class="card">
+    <form method="get" action="/pool_servers" class="toolbar">
+      <div class="field" title="Recherche (serial, équipement, chassis, CFI)">
+        <input type="text" name="q" value="{{ q or '' }}" placeholder="Rechercher (serial, équipement, chassis, CFI)" />
+      </div>
+      <div class="field">
+        <label for="per_page">Par page</label>
+        <select name="per_page" id="per_page">
+          <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
+          <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
+          <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
+          <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" type="submit">Chercher</button>
+      <a class="btn" href="/">Accueil</a>
+    </form>
+
+    <div class="scroll-x">
+      <table class="tbl">
+        <thead>
+          <tr>
+            {% for c in cols %}
+              <th>{{ c.replace('t_poolservers_', '').replace('_', ' ').upper() }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              {% for c in cols %}
+                <td>
+                  {% if c in [
+                      't_poolservers_heartbeat','t_poolservers_san','t_poolservers_bmc',
+                      't_poolservers_discovering','t_poolservers_mynet','t_poolservers_qualif',
+                      't_poolservers_maintenance','t_poolservers_mkp_server_allocated','t_poolservers_soki'
+                    ] %}
+                    {% if r[c] %}
+                      <span class="pill pill-yes">Oui</span>
+                    {% else %}
+                      <span class="pill pill-no">Non</span>
+                    {% endif %}
+                  {% else %}
+                    {{ r[c] if r[c] is not none else '—' }}
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" style="margin-top:12px;">
+      {% if page > 1 %}
+        <a href="/pool_servers?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}">« Précédent</a>
+      {% endif %}
+      <span>Page {{ page }}</span>
+      {% if (page * per_page) < total %}
+        <a href="/pool_servers?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}">Suivant »</a>
+      {% endif %}
+      <span style="margin-left:8px;">Total: {{ total }}</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
