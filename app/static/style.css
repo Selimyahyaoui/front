@@ -1,91 +1,68 @@
-/* ====== Design tokens ====== */
-:root{
-  --brand:#0a7a45;
-  --brand-ink:#0b5c35;
-  --ink:#1f2937;
-  --muted:#6b7280;
-  --bg:#f6f7fb;
-  --card:#ffffff;
-  --border:#e5e7eb;
-  --success:#22c55e;
-  --danger:#ef4444;
-  --warn:#f59e0b;
+/* ==== Universal fixes for table pages ==== */
+
+/* White header everywhere */
+header {
+  background: #fff !important;
+  color: #1f2937 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04) !important;
+  max-width: 1200px !important;
+  margin: 20px auto 12px !important;
+  padding: 12px 16px !important;
 }
 
-/* ====== Base ====== */
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial}
-a{color:var(--brand-ink);text-decoration:none}
-a:hover{text-decoration:underline}
-.content{max-width:1200px;margin:20px auto;padding:0 16px}
-
-/* ====== Header (default: white card) ====== */
-header{
-  max-width:1200px;margin:20px auto 12px;padding:12px 16px;
-  display:flex;align-items:center;gap:12px;
-  background:var(--card);border:1px solid var(--border);border-radius:10px;
-  box-shadow:0 1px 2px rgba(0,0,0,.04);
-}
-header .logo{height:32px}
-header h1{font-size:18px;margin:0}
-
-/* Green banner ONLY when header has .hero--green (use on index page) */
-header.hero--green{
-  background:linear-gradient(0deg, #0b6a3e, #0b6a3e);
-  color:#fff;border-color:transparent;box-shadow:none;
-}
-header.hero--green h1{color:#fff}
-
-/* ====== Toolbar (optional small row under header) ====== */
-.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
-.toolbar .spacer{flex:1}
-.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:#fff;color:var(--brand-ink);padding:6px 10px;border-radius:8px;cursor:pointer}
-.btn--primary{background:var(--brand);color:#fff;border-color:transparent}
-.btn:disabled{opacity:.6;cursor:not-allowed}
-
-/* ====== Cards & tables ====== */
-.card{
-  background:var(--card);border:1px solid var(--border);border-radius:10px;
-  box-shadow:0 1px 2px rgba(0,0,0,.04);padding:10px;
+/* Content container */
+.content {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 12px 16px !important;
+  overflow-x: auto !important;   /* Horizontal scroll if table too wide */
 }
 
-/* Make all wide tables scroll nicely */
-.table-wrap{overflow:auto;border-radius:8px}
-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);min-width:800px}
-th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
-th{
-  background:#fbfbfc;position:sticky;top:0;z-index:1;
-  text-transform:uppercase;font-size:12px;color:var(--muted);
+/* Tables */
+table {
+  width: max-content !important; /* table grows to fit columns */
+  min-width: 100% !important;    /* but at least viewport width */
+  background: #fff !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
 }
-tbody tr:nth-child(odd){background:#fcfcfe}
 
-/* ====== Pagination ====== */
-.pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin:12px 0}
-.pagination a{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff}
-.pagination span{color:var(--muted)}
-
-/* ====== Forms (per-page/select/search) ====== */
-form label, form select, form input[type="text"]{font-size:14px}
-input[type="text"], select{
-  border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff;outline:none;
+/* Cells */
+th, td {
+  white-space: nowrap !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  vertical-align: top !important;
 }
-input[type="text"]:focus, select:focus{border-color:#c7d7cb;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1 !important;
+  background: #fbfbfc !important;
+  text-transform: uppercase !important;
+  font-size: 12px !important;
+  color: #6b7280 !important;
+}
+tbody tr:nth-child(odd) { background: #fcfcfe !important; }
 
-/* ====== Status badges ====== */
-.badge{display:inline-flex;align-items:center;font-weight:700;border-radius:999px;padding:4px 10px;font-size:12px}
-.badge--yes{background:rgba(34,197,94,.12);color:var(--success);border:1px solid rgba(34,197,94,.25)}
-.badge--no{background:rgba(239,68,68,.10);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
-.badge--neutral{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb}
-
-/* Backward-compat with your existing “status-*” classes */
-.status{color:#fff;border-radius:6px;padding:4px 8px;font-weight:700}
-.status-delivered{background:var(--success)}
-.status-cancelled{background:var(--danger)}
-.status-pending{background:var(--warn)}
-
-/* Small screens */
-@media (max-width: 720px){
-  header{margin:12px 8px}
-  .content{padding:0 8px}
-  th{font-size:11px}
+/* Status / badge style if needed */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.badge--yes {
+  background: rgba(34,197,94,.12);
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,.25);
+}
+.badge--no {
+  background: rgba(239,68,68,.10);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,.25);
 }
