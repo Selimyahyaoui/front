@@ -5,12 +5,15 @@
   <title>VLANs disponibles</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    /* page-local helpers to keep big tables tidy */
     .shell { max-width: 1200px; margin: 0 auto; padding: 16px; }
-    .toolbar { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
+    header { background:#fff; border-bottom:1px solid #e6e8eb; }
+    .header-row { display:flex; gap:12px; align-items:center; padding:12px 16px; }
+    .logo { height:32px; }
+    h1 { margin:0; font-size:20px; font-weight:700; }
+    .toolbar { display:flex; gap:10px; align-items:center; justify-content:flex-end; margin:12px 0 0; }
     .btn { padding:8px 12px; border:1px solid #ddd; background:#fff; border-radius:8px; cursor:pointer; }
     .btn-ghost { background:#f6f7f8; }
-    .card { background:#fff; border:1px solid #e6e8eb; border-radius:12px; padding:16px; }
+    .card { background:#fff; border:1px solid #e6e8eb; border-radius:12px; padding:16px; margin-top:12px; }
     .tbl { width:100%; border-collapse:collapse; }
     .tbl th, .tbl td { padding:10px 12px; border-bottom:1px solid #eef0f2; vertical-align:top; }
     .tbl thead th { background:#f7f8f9; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.02em; }
@@ -18,13 +21,8 @@
     .badge-yes { background:#eaf7eb; color:#246b2c; border-color:#cfe9d2; }
     .badge-no  { background:#fcebea; color:#b3261e; border-color:#f4c7c4; }
     .table-wrap { overflow-x:auto; }
-    .grid { display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:center; }
-    header { background:#fff; border-bottom:1px solid #e6e8eb; }
-    .logo { height:32px; }
-    h1 { margin:0; font-size:20px; }
-    .header-row { display:flex; gap:12px; align-items:center; padding:12px 16px; }
-    .spacer { flex:1; }
     .pagination { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
+    .grow { flex:1; }
   </style>
 </head>
 <body>
@@ -32,43 +30,43 @@
     <div class="header-row">
       <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo" />
       <h1>VLANs disponibles</h1>
-      <div class="spacer"></div>
-      <form class="grid" method="get" action="/vlans">
-        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (id, zone, réseau…)" />
-        <div class="grid" style="grid-template-columns: auto auto;">
-          <label for="per_page">Par page</label>
-          <select id="per_page" name="per_page">
-            <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
-            <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
-            <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
-          </select>
-        </div>
-        <button class="btn" type="submit">Chercher</button>
-        <a class="btn btn-ghost" href="/">Accueil</a>
-      </form>
+      <div class="grow"></div>
     </div>
   </header>
 
   <div class="shell">
+    <!-- Toolbar under the header -->
+    <form class="toolbar" method="get" action="/vlans">
+      <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (id, zone, réseau…)" />
+      <label for="per_page">Par page</label>
+      <select id="per_page" name="per_page">
+        <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
+        <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
+        <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
+        <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+      </select>
+      <button class="btn" type="submit">Chercher</button>
+      <a class="btn btn-ghost" href="/">Accueil</a>
+    </form>
+
     <div class="card">
       <div class="table-wrap">
         <table class="tbl">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Date ajout</th>
-              <th>VLAN target</th>
-              <th>Commentaires</th>
+              <th>DATE AJOUT</th>
+              <th>VLAN TARGET</th>
+              <th>COMMENTAIRES</th>
               <th>VLAN ID</th>
-              <th>Zone physique</th>
-              <th>Environnement</th>
-              <th>Trunked</th>
-              <th>Natif</th>
+              <th>ZONE PHYSIQUE</th>
+              <th>ENVIRONNEMENT</th>
+              <th>TRUNKED</th>
+              <th>NATIF</th>
               <th>LACP</th>
-              <th>Scope Infoblox</th>
-              <th>AP Code ID</th>
-              <th>Scope Infoblox MKP</th>
+              <th>SCOPE INFOBLOX</th>
+              <th>AP CODE ID</th>
+              <th>SCOPE INFOBLOX MKP</th>
             </tr>
           </thead>
           <tbody>
@@ -81,21 +79,9 @@
               <td>{{ v[4] }}</td>
               <td>{{ v[5] }}</td>
               <td>{{ v[6] }}</td>
-              <td>
-                <span class="pill {% if v[7] %}badge-yes{% else %}badge-no{% endif %}">
-                  {% if v[7] %}Oui{% else %}Non{% endif %}
-                </span>
-              </td>
-              <td>
-                <span class="pill {% if v[8] %}badge-yes{% else %}badge-no{% endif %}">
-                  {% if v[8] %}Oui{% else %}Non{% endif %}
-                </span>
-              </td>
-              <td>
-                <span class="pill {% if v[9] %}badge-yes{% else %}badge-no{% endif %}">
-                  {% if v[9] %}Oui{% else %}Non{% endif %}
-                </span>
-              </td>
+              <td><span class="pill {% if v[7] %}badge-yes{% else %}badge-no{% endif %}">{% if v[7] %}Oui{% else %}Non{% endif %}</span></td>
+              <td><span class="pill {% if v[8] %}badge-yes{% else %}badge-no{% endif %}">{% if v[8] %}Oui{% else %}Non{% endif %}</span></td>
+              <td><span class="pill {% if v[9] %}badge-yes{% else %}badge-no{% endif %}">{% if v[9] %}Oui{% else %}Non{% endif %}</span></td>
               <td>{{ v[10] }}</td>
               <td>{{ v[11] }}</td>
               <td>{{ v[12] }}</td>
