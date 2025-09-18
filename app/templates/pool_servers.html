@@ -58,6 +58,10 @@
       <a class="btn btn--ghost" href="/">Accueil</a>
     </form>
 
+    {% macro yesno(v) -%}
+      {%- if v %}<span class="pill ok">Oui</span>{%- else %}<span class="pill bad">Non</span>{%- endif -%}
+    {%- endmacro %}
+
     <!-- Table -->
     <div class="card">
       <div style="overflow:auto; max-height:70vh">
@@ -143,40 +147,39 @@
               <td>{{ r.t_poolservers_physical_zone_target }}</td>
               <td>{{ r.t_poolservers_nic_count }}</td>
 
-              {% set yesno = lambda v: '<span class="pill ' ~ ('ok">Oui' if v else 'bad">Non') ~ '</span>' %}
-              <td>{{ (yesno(r.t_poolservers_heartbeat)|safe) if r.t_poolservers_heartbeat is not none else '—' }}</td>
-              <td>{{ (yesno(r.t_poolservers_san)|safe) if r.t_poolservers_san is not none else '—' }}</td>
-              <td>{{ (yesno(r.t_poolservers_bmc)|safe) if r.t_poolservers_bmc is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_heartbeat) }}</td>
+              <td>{{ yesno(r.t_poolservers_san) }}</td>
+              <td>{{ yesno(r.t_poolservers_bmc) }}</td>
 
               <td>{{ r.t_poolservers_bmc_last_check_inc or '—' }}</td>
               <td>{{ r.t_poolservers_bmc_date or '—' }}</td>
               <td>{{ r.t_poolservers_bmc_mac or '—' }}</td>
 
-              <td>{{ (yesno(r.t_poolservers_discovering)|safe) if r.t_poolservers_discovering is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_discovering) }}</td>
               <td>{{ r.t_poolservers_discovering_state or '—' }}</td>
               <td>{{ r.t_poolservers_discovering_date or '—' }}</td>
               <td>{{ r.t_poolservers_discovering_inc or '—' }}</td>
 
-              <td>{{ (yesno(r.t_poolservers_mynet)|safe) if r.t_poolservers_mynet is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_mynet) }}</td>
               <td>{{ r.t_poolservers_mynet_state or '—' }}</td>
               <td>{{ r.t_poolservers_mynet_date or '—' }}</td>
               <td>{{ r.t_poolservers_mynet_inc or '—' }}</td>
 
-              <td>{{ (yesno(r.t_poolservers_qualif)|safe) if r.t_poolservers_qualif is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_qualif) }}</td>
               <td>{{ r.t_poolservers_qualif_state or '—' }}</td>
               <td>{{ r.t_poolservers_qualif_date or '—' }}</td>
               <td>{{ r.t_poolservers_t_qualif_id or '—' }}</td>
 
               <td>{{ r.t_poolservers_business_unit or '—' }}</td>
               <td>{{ r.t_poolservers_ap_code_authorized or '—' }}</td>
-              <td>{{ (yesno(r.t_poolservers_maintenance)|safe) if r.t_poolservers_maintenance is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_maintenance) }}</td>
               <td class="muted">{{ r.t_poolservers_maintenance_comments or '—' }}</td>
               <td>{{ r.t_poolservers_maintenance_date or '—' }}</td>
 
               <td>{{ r.t_poolservers_mkp_subscription_id or '—' }}</td>
               <td>{{ r.t_poolservers_mkp_owner or '—' }}</td>
               <td>{{ r.t_poolservers_mkp_track_id or '—' }}</td>
-              <td>{{ (yesno(r.t_poolservers_mkp_server_allocated)|safe) if r.t_poolservers_mkp_server_allocated is not none else '—' }}</td>
+              <td>{{ yesno(r.t_poolservers_mkp_server_allocated) }}</td>
               <td>{{ r.t_poolservers_mkp_allocation_date or '—' }}</td>
               <td>{{ r.t_poolservers_mkp_ecosystem or '—' }}</td>
               <td>{{ r.t_poolservers_mkp_hostname or '—' }}</td>
