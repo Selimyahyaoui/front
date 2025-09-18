@@ -6,10 +6,7 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
-      --card:#fff; --bg:#f7f7f9; --brand:#14823b;
-    }
+    :root{ --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb; --card:#fff; --bg:#f7f7f9; --brand:#14823b; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -40,15 +37,15 @@
 <body>
   <div class="shell">
 
-    <!-- Same hero/banner as catalog -->
+    <!-- Header identical to catalogue -->
     <div class="hero">
       <img src="/static/bnp_logo.png" alt="BNP">
       <h1>Pool serveurs</h1>
     </div>
 
-    <!-- Same toolbar as catalog -->
+    <!-- Toolbar identical layout -->
     <form class="toolbar" action="/pool_servers" method="get">
-      <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (serial, équipement, zone)…">
+      <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (serial, équipement, zone, …)">
       <div class="spacer"></div>
       <label class="muted">Par page
         <select class="input" name="per_page" onchange="this.form.submit()">
@@ -59,10 +56,9 @@
       </label>
       <button class="btn btn--ghost" type="submit">Chercher</button>
       <a class="btn btn--ghost" href="/">Accueil</a>
-      <input type="hidden" name="page" value="{{ page }}">
     </form>
 
-    <!-- Card + scrollable table -->
+    <!-- Table -->
     <div class="card">
       <div style="overflow:auto; max-height:70vh">
         <table>
@@ -73,8 +69,8 @@
               <th>Serial number</th>
               <th>Serial chassis</th>
               <th>Date add</th>
-              <th>T Catalog Server ID</th>
-              <th>T Asset Report ID</th>
+              <th>T Catalog server ID</th>
+              <th>T Asset report ID</th>
               <th>Region</th>
               <th>T Site ID</th>
               <th>Priority</th>
@@ -90,101 +86,126 @@
               <th>Discovering</th>
               <th>Discovering state</th>
               <th>Discovering date</th>
+              <th>Discovering inc</th>
               <th>MYNET</th>
               <th>MYNET state</th>
               <th>MYNET date</th>
+              <th>MYNET inc</th>
               <th>Qualif</th>
               <th>Qualif state</th>
               <th>Qualif date</th>
+              <th>T Qualif ID</th>
               <th>Business unit</th>
               <th>AP code authorized</th>
+              <th>Maintenance</th>
+              <th>Maintenance comments</th>
+              <th>Maintenance date</th>
+              <th>MKP subscription id</th>
+              <th>MKP owner</th>
+              <th>MKP track id</th>
+              <th>MKP server allocated</th>
+              <th>MKP allocation date</th>
+              <th>MKP ecosystem</th>
+              <th>MKP hostname</th>
+              <th>MKP workspace id</th>
+              <th>MKP deployment id</th>
+              <th>MKP product name</th>
+              <th>MKP product version</th>
+              <th>MKP component name</th>
+              <th>MKP component version</th>
+              <th>MKP product name final</th>
+              <th>MKP env</th>
+              <th>State int</th>
+              <th>State string</th>
+              <th>Supchain subscription id</th>
+              <th>Bmaas subscription id</th>
+              <th>SOKI</th>
+              <th>BMC state</th>
+              <th>Discovering last check inc</th>
+              <th>MYNET last check inc</th>
+              <th>MYNET subscription id</th>
             </tr>
           </thead>
           <tbody>
             {% for r in rows %}
             <tr>
-              <td>{{ r[0] }}</td>
-              <td>{{ r[1] }}</td>
-              <td>{{ r[2] }}</td>
-              <td>{{ r[3] or '—' }}</td>
-              <td>{{ r[4] }}</td>
-              <td>{{ r[5] }}</td>
-              <td>{{ r[6] }}</td>
-              <td>{{ r[7] }}</td>
-              <td>{{ r[8] }}</td>
-              <td>{{ r[9] }}</td>
-              <td>{{ r[10] }}</td>
-              <td>{{ r[11] }}</td>
-              <td>{{ r[12] }}</td>
+              <td>{{ r.t_poolservers_id }}</td>
+              <td>{{ r.t_poolservers_equipment_name }}</td>
+              <td>{{ r.t_poolservers_serial_number }}</td>
+              <td>{{ r.t_poolservers_serial_chassis or '—' }}</td>
+              <td>{{ r.t_poolservers_date_add }}</td>
+              <td>{{ r.t_poolservers_t_catalog_server_id }}</td>
+              <td>{{ r.t_poolservers_t_asset_report_id }}</td>
+              <td>{{ r.t_poolservers_region }}</td>
+              <td>{{ r.t_poolservers_t_site_id }}</td>
+              <td>{{ r.t_poolservers_priority }}</td>
+              <td>{{ r.t_poolservers_cfi_code }}</td>
+              <td>{{ r.t_poolservers_physical_zone_target }}</td>
+              <td>{{ r.t_poolservers_nic_count }}</td>
 
-              <td>
-                {% if r[13] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if r[14] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if r[15] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
+              {% set yesno = lambda v: '<span class="pill ' ~ ('ok">Oui' if v else 'bad">Non') ~ '</span>' %}
+              <td>{{ (yesno(r.t_poolservers_heartbeat)|safe) if r.t_poolservers_heartbeat is not none else '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_san)|safe) if r.t_poolservers_san is not none else '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_bmc)|safe) if r.t_poolservers_bmc is not none else '—' }}</td>
 
-              <td>{{ r[16] or '—' }}</td>
-              <td>{{ r[17] or '—' }}</td>
-              <td>{{ r[18] or '—' }}</td>
+              <td>{{ r.t_poolservers_bmc_last_check_inc or '—' }}</td>
+              <td>{{ r.t_poolservers_bmc_date or '—' }}</td>
+              <td>{{ r.t_poolservers_bmc_mac or '—' }}</td>
 
-              <td>
-                {% if r[19] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
-              <td>{{ r[20] or '—' }}</td>
-              <td>{{ r[21] or '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_discovering)|safe) if r.t_poolservers_discovering is not none else '—' }}</td>
+              <td>{{ r.t_poolservers_discovering_state or '—' }}</td>
+              <td>{{ r.t_poolservers_discovering_date or '—' }}</td>
+              <td>{{ r.t_poolservers_discovering_inc or '—' }}</td>
 
-              <td>
-                {% if r[23] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
-              <td>{{ r[24] or '—' }}</td>
-              <td>{{ r[25] or '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_mynet)|safe) if r.t_poolservers_mynet is not none else '—' }}</td>
+              <td>{{ r.t_poolservers_mynet_state or '—' }}</td>
+              <td>{{ r.t_poolservers_mynet_date or '—' }}</td>
+              <td>{{ r.t_poolservers_mynet_inc or '—' }}</td>
 
-              <td>
-                {% if r[27] %}
-                  <span class="pill ok">Oui</span>
-                {% else %}
-                  <span class="pill bad">Non</span>
-                {% endif %}
-              </td>
-              <td>{{ r[28] or '—' }}</td>
-              <td>{{ r[29] or '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_qualif)|safe) if r.t_poolservers_qualif is not none else '—' }}</td>
+              <td>{{ r.t_poolservers_qualif_state or '—' }}</td>
+              <td>{{ r.t_poolservers_qualif_date or '—' }}</td>
+              <td>{{ r.t_poolservers_t_qualif_id or '—' }}</td>
 
-              <td>{{ r[31] or '—' }}</td>
-              <td>{{ r[32] or '—' }}</td>
+              <td>{{ r.t_poolservers_business_unit or '—' }}</td>
+              <td>{{ r.t_poolservers_ap_code_authorized or '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_maintenance)|safe) if r.t_poolservers_maintenance is not none else '—' }}</td>
+              <td class="muted">{{ r.t_poolservers_maintenance_comments or '—' }}</td>
+              <td>{{ r.t_poolservers_maintenance_date or '—' }}</td>
+
+              <td>{{ r.t_poolservers_mkp_subscription_id or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_owner or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_track_id or '—' }}</td>
+              <td>{{ (yesno(r.t_poolservers_mkp_server_allocated)|safe) if r.t_poolservers_mkp_server_allocated is not none else '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_allocation_date or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_ecosystem or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_hostname or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_workspace_id or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_deployment_id or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_product_name or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_product_version or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_component_name or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_component_version or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_product_name_final or '—' }}</td>
+              <td>{{ r.t_poolservers_mkp_env or '—' }}</td>
+              <td>{{ r.t_poolservers_state_int or '—' }}</td>
+              <td>{{ r.t_poolservers_state_string or '—' }}</td>
+              <td>{{ r.t_poolservers_supchain_subscription_id or '—' }}</td>
+              <td>{{ r.t_poolservers_bmaas_subscription_id or '—' }}</td>
+              <td>{{ r.t_poolservers_soki or '—' }}</td>
+              <td>{{ r.t_poolservers_bmc_state or '—' }}</td>
+              <td>{{ r.t_poolservers_discovering_last_check_inc or '—' }}</td>
+              <td>{{ r.t_poolservers_mynet_last_check_inc or '—' }}</td>
+              <td>{{ r.t_poolservers_mynet_subscription_id or '—' }}</td>
             </tr>
             {% endfor %}
             {% if rows|length == 0 %}
-              <tr><td colspan="32" class="muted">Aucun enregistrement.</td></tr>
+              <tr><td colspan="999" class="muted">Aucun enregistrement.</td></tr>
             {% endif %}
           </tbody>
         </table>
       </div>
 
-      <!-- Pager identical to catalog -->
       <div class="pager">
         {% set last_page = (total // per_page) + (1 if (total % per_page)>0 else 0) %}
         <span class="muted">Total: {{ total }}</span>
