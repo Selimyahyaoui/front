@@ -3,60 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <title>Commandes Dell</title>
-  <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
   <style>
-    /* reuses the same micro-styles we used for catalogue/ips */
+    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
-    .hero{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
-    .hero img{height:28px}
-    .hero h1{margin:0;font-size:18px}
-    .hint{margin-left:auto;color:#6b7280;font-size:12px}
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;margin-bottom:14px}
+    .hero{display:flex;align-items:center;gap:12px;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
     .toolbar .spacer{flex:1}
-    .btn{border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 10px;cursor:pointer}
-    .in{border:1px solid #e5e7eb;border-radius:8px;padding:8px}
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .input{border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn--ghost{background:#fff;color:#111;border:1px solid var(--border)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{background:#fbfbfc;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:.02em;padding:10px}
-    tbody td{border-bottom:1px solid #e5e7eb;padding:10px}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
     tbody tr:nth-child(odd){background:#fcfcfe}
-    .pill{display:inline-block;font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid #e5e7eb}
-    .pill--ok{background:#e7f6ea;color:#116d37;border-color:#ccebd6}
-    .pill--warn{background:#fff7e6;color:#a15c00;border-color:#ffe3b3}
-    .pill--bad{background:#fdeaea;color:#8a1d1d;border-color:#f5c2c2}
-    .pagination{display:flex;gap:10px;justify-content:flex-end;padding:10px 12px;color:#6b7280}
-    .pagination a{padding:6px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;text-decoration:none}
-    .muted{color:#6b7280}
+    .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
+    .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
+    .muted{color:var(--muted)}
+    .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:12px}
   </style>
 </head>
 <body>
   <div class="shell">
+
     <div class="hero">
-      <img src="/static/bnp_logo.png" alt="BNP">
+      <img src="/static/bnp_logo.png" alt="BNP" />
       <h1>Commandes Dell</h1>
-      <div class="hint">Recherche et pagination</div>
     </div>
 
-    <form method="get" action="/orders" class="toolbar">
+    <form class="toolbar" action="/orders" method="get">
+      <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (PO, projet, vendor)…">
+      <div class="spacer"></div>
       <label class="muted">Par page
-        <select name="per_page" class="in" onchange="this.form.submit()">
-          <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
-          <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
-          <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
-          <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+        <select class="input" name="per_page" onchange="this.form.submit()">
+          {% for n in [10,20,50,100] %}
+            <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
         </select>
       </label>
-      <div class="spacer"></div>
-      <input class="in" type="text" name="q" value="{{ q or '' }}" placeholder="Rechercher (PO, projet, vendor)…">
-      <button class="btn" type="submit">Chercher</button>
-      <a class="btn" href="/">Accueil</a>
-      <input type="hidden" name="page" value="1">
+      <button class="btn btn--ghost" type="submit">Chercher</button>
+      <a class="btn btn--ghost" href="/">Accueil</a>
     </form>
 
     <div class="card">
-      <table>
-        <thead>
+      <div style="overflow:auto; max-height:70vh">
+        <table>
+          <thead>
           <tr>
             <th>ID</th>
             <th>PO Number</th>
@@ -66,49 +66,65 @@
             <th>Vendor</th>
             <th>Statut</th>
             <th>AP Code</th>
+            <th>Suivi Dell</th>
           </tr>
-        </thead>
-        <tbody>
-          {% for o in orders %}
-          <tr>
-            <td>{{ o[0] }}</td>
-            <td class="muted">{{ o[1] }}</td>
-            <td>{{ o[2] }}</td>
-            <td>{{ o[3] }}</td>
-            <td>{{ o[4] }}</td>
-            <td>{{ o[5] }}</td>
-            <td>
-              {% set s = (o[6] or '')|lower %}
-              {% if 'ship' in s or 'done' in s or 'ok' in s or 'deliv' in s %}
-                <span class="pill pill--ok">{{ o[6] }}</span>
-              {% elif 'pend' in s or 'proc' in s or 'in progress' in s %}
-                <span class="pill pill--warn">{{ o[6] }}</span>
-              {% elif 'cancel' in s or 'fail' in s or 'error' in s or 'ko' in s %}
-                <span class="pill pill--bad">{{ o[6] }}</span>
-              {% else %}
-                <span class="pill">{{ o[6] }}</span>
-              {% endif %}
-            </td>
-            <td>{{ o[7] }}</td>
-          </tr>
+          </thead>
+          <tbody>
+          {% for r in rows %}
+            {% set st = (r[6] or '')|trim|lower %}
+            <tr>
+              <td>{{ r[0] }}</td>
+              <td>{{ r[1] }}</td>
+              <td>{{ r[2] }}</td>
+              <td>{{ r[3] }}</td>
+              <td>{{ r[4] }}</td>
+              <td>{{ r[5] }}</td>
+              <td>
+                {% if st in ['confirmed','processing','in progress'] %}
+                  <span class="pill warn">{{ r[6] }}</span>
+                {% elif st in ['shipped','completed'] %}
+                  <span class="pill ok">{{ r[6] }}</span>
+                {% elif st in ['cancelled','canceled'] %}
+                  <span class="pill bad">{{ r[6] }}</span>
+                {% else %}
+                  <span class="pill">{{ r[6] or '—' }}</span>
+                {% endif %}
+              </td>
+              <td>{{ r[7] or '—' }}</td>
+              <td>
+                {% if r[8] %}
+                  <a class="btn btn--ghost" href="/orders/{{ r[0] }}/dell">Détails</a>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
           {% endfor %}
-          {% if orders|length == 0 %}
-          <tr><td colspan="8" class="muted">Aucune commande.</td></tr>
+          {% if rows|length == 0 %}
+            <tr><td colspan="9" class="muted">Aucun enregistrement.</td></tr>
           {% endif %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
 
-      <div class="pagination">
-        <span>Total: {{ total }}</span>
+      <div class="pager">
+        {% set last_page = (total // per_page) + (1 if (total % per_page)>0 else 0) %}
+        <span class="muted">Total: {{ total }}</span>
+        <div style="flex:1"></div>
         {% if page > 1 %}
-          <a href="/orders?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Précédent</a>
+          <a class="btn btn--ghost" href="/orders?page={{ page-1 }}&per_page={{ per_page }}&q={{ q }}">Précédent</a>
+        {% else %}
+          <button class="btn btn--ghost" disabled>Précédent</button>
         {% endif %}
-        <span>Page {{ page }}</span>
-        {% if (page * per_page) < total %}
-          <a href="/orders?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Suivant</a>
+        <span class="muted">Page {{ page }} / {{ last_page if last_page>0 else 1 }}</span>
+        {% if page < last_page %}
+          <a class="btn btn--ghost" href="/orders?page={{ page+1 }}&per_page={{ per_page }}&q={{ q }}">Suivant</a>
+        {% else %}
+          <button class="btn btn--ghost" disabled>Suivant</button>
         {% endif %}
       </div>
     </div>
+
   </div>
 </body>
 </html>
