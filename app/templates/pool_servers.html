@@ -5,74 +5,86 @@
   <title>Pool serveurs</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    /* page-specific helpers (minimal) */
-    .card { background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
-    .toolbar { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
-    .field { display:flex; align-items:center; gap:6px; }
-    .pill { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; }
-    .pill-yes { background:#e8f5e9; color:#2e7d32; }
-    .pill-no  { background:#fdecea; color:#c62828; }
-    .scroll-x { overflow-x:auto; }
-    table.tbl { width:max-content; min-width:100%; border-collapse:collapse; }
-    .tbl th, .tbl td { border-bottom:1px solid #eee; padding:10px 12px; white-space:nowrap; }
-    .tbl thead th { position:sticky; top:0; background:#fafafa; z-index:1; }
-    header { background:#fff; color:#222; border-bottom:1px solid #eee; }
-    header h1 { color:#222; }
-    .btn { border:1px solid #ddd; padding:6px 10px; border-radius:6px; background:#fff; cursor:pointer; }
-    .btn-primary { background:#0a7f4a; color:#fff; border-color:#0a7f4a; }
+    .header-bar { background:#fff; border-bottom:1px solid #e5e7eb; }
+    .wrap      { max-width:1200px; margin:0 auto; padding:16px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand img { height:36px; }
+    .brand h1 { font-size:22px; margin:0; font-weight:700; color:#0b3d2e; }
+
+    .controls { display:flex; gap:8px; align-items:center; margin:12px 0 16px; }
+    .controls .spacer { flex:1; }
+    .controls input[type="text"]{
+      padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; width:320px;
+    }
+    .btn { padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; }
+    .btn.primary { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
+    .btn.linklike { background:#f9fafb; }
+
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #f1f5f9; padding:10px 12px; text-align:left; vertical-align:top; }
+    th { background:#f8fafc; font-weight:600; white-space:nowrap; position:sticky; top:0; z-index:1; }
+    .badge { display:inline-block; padding:2px 10px; font-size:12px; font-weight:700; border-radius:999px; }
+    .yes { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+    .no  { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
+    .dash{ color:#94a3b8; }
+    .table-container { overflow:auto; max-height:70vh; border-radius:12px; }
+    .foot { display:flex; justify-content:space-between; color:#475569; padding-top:10px; font-size:14px; }
   </style>
 </head>
 <body>
-<header>
-  <img src="/static/bnp_logo.png" alt="BNP Paribas" class="logo" />
-  <h1>Pool serveurs</h1>
-</header>
 
-<div class="content">
-  <div class="card">
-    <form method="get" action="/pool_servers" class="toolbar">
-      <div class="field" title="Recherche (serial, équipement, chassis, CFI)">
-        <input type="text" name="q" value="{{ q or '' }}" placeholder="Rechercher (serial, équipement, chassis, CFI)" />
+  <!-- header identical spirit to catalog -->
+  <div class="header-bar">
+    <div class="wrap">
+      <div class="brand">
+        <img src="/static/bnp_logo.png" alt="BNP Paribas" />
+        <h1>Pool serveurs</h1>
       </div>
-      <div class="field">
-        <label for="per_page">Par page</label>
-        <select name="per_page" id="per_page">
+
+      <form class="controls" method="get" action="/pool_servers">
+        <div class="spacer"></div>
+        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (serial, équipement, zone, ...)" />
+        <label for="per_page" class="sr-only">Par page</label>
+        <select id="per_page" name="per_page" onchange="this.form.submit()">
           <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
           <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
           <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
           <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
         </select>
-      </div>
-      <button class="btn btn-primary" type="submit">Chercher</button>
-      <a class="btn" href="/">Accueil</a>
-    </form>
+        <button class="btn primary" type="submit">Chercher</button>
+        <a class="btn linklike" href="/">Accueil</a>
+      </form>
+    </div>
+  </div>
 
-    <div class="scroll-x">
-      <table class="tbl">
+  <div class="wrap">
+    <div class="card table-container">
+      <table>
         <thead>
           <tr>
-            {% for c in cols %}
-              <th>{{ c.replace('t_poolservers_', '').replace('_', ' ').upper() }}</th>
+            {% for h in headers %}
+              <th title="{{ h.raw }}">{{ h.title }}</th>
             {% endfor %}
           </tr>
         </thead>
         <tbody>
-          {% for r in rows %}
+          {% for row in rows %}
             <tr>
-              {% for c in cols %}
+              {% for h in headers %}
+                {% set key = h.raw %}
+                {% set val = row.get(key) %}
                 <td>
-                  {% if c in [
-                      't_poolservers_heartbeat','t_poolservers_san','t_poolservers_bmc',
-                      't_poolservers_discovering','t_poolservers_mynet','t_poolservers_qualif',
-                      't_poolservers_maintenance','t_poolservers_mkp_server_allocated','t_poolservers_soki'
-                    ] %}
-                    {% if r[c] %}
-                      <span class="pill pill-yes">Oui</span>
+                  {% if key in bool_cols %}
+                    {% if val is none %}
+                      <span class="dash">—</span>
+                    {% elif val %}
+                      <span class="badge yes">Oui</span>
                     {% else %}
-                      <span class="pill pill-no">Non</span>
+                      <span class="badge no">Non</span>
                     {% endif %}
                   {% else %}
-                    {{ r[c] if r[c] is not none else '—' }}
+                    {{ val if val is not none and val|string|length > 0 else "—" }}
                   {% endif %}
                 </td>
               {% endfor %}
@@ -82,17 +94,19 @@
       </table>
     </div>
 
-    <div class="pagination" style="margin-top:12px;">
-      {% if page > 1 %}
-        <a href="/pool_servers?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}">« Précédent</a>
-      {% endif %}
-      <span>Page {{ page }}</span>
-      {% if (page * per_page) < total %}
-        <a href="/pool_servers?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q | urlencode }}">Suivant »</a>
-      {% endif %}
-      <span style="margin-left:8px;">Total: {{ total }}</span>
+    <div class="foot">
+      <div>Total: {{ total }}</div>
+      <div>
+        {% if page > 1 %}
+          <a class="btn" href="/pool_servers?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q }}">Précédent</a>
+        {% endif %}
+        <span>Page {{ page }}</span>
+        {% if (page * per_page) < total %}
+          <a class="btn" href="/pool_servers?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q }}">Suivant</a>
+        {% endif %}
+      </div>
     </div>
   </div>
-</div>
+
 </body>
 </html>
