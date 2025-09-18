@@ -4,109 +4,199 @@
   <meta charset="UTF-8" />
   <title>Pool serveurs</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <style>
-    .header-bar { background:#fff; border-bottom:1px solid #e5e7eb; }
-    .wrap      { max-width:1200px; margin:0 auto; padding:16px; }
-    .brand { display:flex; align-items:center; gap:12px; }
-    .brand img { height:36px; }
-    .brand h1 { font-size:22px; margin:0; font-weight:700; color:#0b3d2e; }
-
-    .controls { display:flex; gap:8px; align-items:center; margin:12px 0 16px; }
-    .controls .spacer { flex:1; }
-    .controls input[type="text"]{
-      padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px; width:320px;
-    }
-    .btn { padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; background:#fff; cursor:pointer; }
-    .btn.primary { background:#0ea5e9; color:#fff; border-color:#0ea5e9; }
-    .btn.linklike { background:#f9fafb; }
-
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { border-bottom:1px solid #f1f5f9; padding:10px 12px; text-align:left; vertical-align:top; }
-    th { background:#f8fafc; font-weight:600; white-space:nowrap; position:sticky; top:0; z-index:1; }
-    .badge { display:inline-block; padding:2px 10px; font-size:12px; font-weight:700; border-radius:999px; }
-    .yes { background:#dcfce7; color:#166534; border:1px solid #86efac; }
-    .no  { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
-    .dash{ color:#94a3b8; }
-    .table-container { overflow:auto; max-height:70vh; border-radius:12px; }
-    .foot { display:flex; justify-content:space-between; color:#475569; padding-top:10px; font-size:14px; }
-  </style>
 </head>
 <body>
+  <!-- Banner -->
+  <div class="banner">
+    <div class="brand">
+      <img src="/static/bnp_logo.png" alt="BNP Paribas" />
+      <span>Pool serveurs</span>
+    </div>
 
-  <!-- header identical spirit to catalog -->
-  <div class="header-bar">
-    <div class="wrap">
-      <div class="brand">
-        <img src="/static/bnp_logo.png" alt="BNP Paribas" />
-        <h1>Pool serveurs</h1>
-      </div>
+    <!-- Toolbar: search + per page + buttons -->
+    <form class="toolbar" method="get" action="/pool_servers">
+      <input
+        type="text"
+        name="q"
+        placeholder="Rechercher (serial, équipement, zone, …)"
+        value="{{ q or '' }}"
+      />
 
-      <form class="controls" method="get" action="/pool_servers">
-        <div class="spacer"></div>
-        <input type="text" name="q" value="{{ q }}" placeholder="Rechercher (serial, équipement, zone, ...)" />
-        <label for="per_page" class="sr-only">Par page</label>
-        <select id="per_page" name="per_page" onchange="this.form.submit()">
-          <option value="10"  {% if per_page == 10 %}selected{% endif %}>10</option>
-          <option value="20"  {% if per_page == 20 %}selected{% endif %}>20</option>
-          <option value="50"  {% if per_page == 50 %}selected{% endif %}>50</option>
+      <label class="per-page">
+        Par page
+        <select name="per_page">
+          <option value="10"  {% if per_page == 10  %}selected{% endif %}>10</option>
+          <option value="20"  {% if per_page == 20  %}selected{% endif %}>20</option>
+          <option value="50"  {% if per_page == 50  %}selected{% endif %}>50</option>
           <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
         </select>
-        <button class="btn primary" type="submit">Chercher</button>
-        <a class="btn linklike" href="/">Accueil</a>
-      </form>
-    </div>
+      </label>
+
+      <button type="submit" class="btn primary">Chercher</button>
+      <a href="/" class="btn">Accueil</a>
+
+      <!-- Preserve current page when you change per_page or search -->
+      <input type="hidden" name="page" value="{{ page }}" />
+    </form>
   </div>
 
-  <div class="wrap">
-    <div class="card table-container">
-      <table>
-        <thead>
-          <tr>
-            {% for h in headers %}
-              <th title="{{ h.raw }}">{{ h.title }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in rows %}
-            <tr>
-              {% for h in headers %}
-                {% set key = h.raw %}
-                {% set val = row.get(key) %}
-                <td>
-                  {% if key in bool_cols %}
-                    {% if val is none %}
-                      <span class="dash">—</span>
-                    {% elif val %}
-                      <span class="badge yes">Oui</span>
-                    {% else %}
-                      <span class="badge no">Non</span>
-                    {% endif %}
-                  {% else %}
-                    {{ val if val is not none and val|string|length > 0 else "—" }}
-                  {% endif %}
-                </td>
-              {% endfor %}
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <!-- Card -->
+  <div class="card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Equipment name</th>
+          <th>Serial number</th>
+          <th>Serial chassis</th>
+          <th>Date add</th>
+          <th>T Catalog Server ID</th>
+          <th>T Asset Report ID</th>
+          <th>Region</th>
+          <th>T Site ID</th>
+          <th>Priority</th>
+          <th>CFI code</th>
+          <th>Physical zone target</th>
+          <th>NIC count</th>
 
-    <div class="foot">
+          <th>Heartbeat</th>
+          <th>SAN</th>
+          <th>BMC</th>
+          <th>BMC last check inc</th>
+          <th>BMC date</th>
+          <th>BMC MAC</th>
+
+          <th>Discovering</th>
+          <th>Discovering state</th>
+          <th>Discovering date</th>
+          <th>Discovering inc</th>
+
+          <th>MYNET</th>
+          <th>MYNET state</th>
+          <th>MYNET date</th>
+          <th>MYNET inc</th>
+
+          <th>Qualif</th>
+          <th>Qualif state</th>
+          <th>Qualif date</th>
+          <th>T Qualif ID</th>
+
+          <th>Business unit</th>
+          <th>AP code authorized</th>
+          <th>Maintenance</th>
+          <th>Maintenance comments</th>
+          <th>Maintenance date</th>
+
+          <th>MKP subscription id</th>
+          <th>MKP owner</th>
+          <th>MKP track id</th>
+          <th>MKP server allocated</th>
+          <th>MKP allocation date</th>
+          <th>MKP ecosystem</th>
+          <th>MKP hostname</th>
+          <th>MKP workspace id</th>
+          <th>MKP deployment id</th>
+          <th>MKP product name</th>
+          <th>MKP product version</th>
+          <th>MKP component name</th>
+          <th>MKP component version</th>
+          <th>MKP product name final</th>
+          <th>MKP env</th>
+
+          <th>State (int)</th>
+          <th>State (string)</th>
+          <th>supchain subscription id</th>
+          <th>bmaas subscription id</th>
+          <th>SOKI</th>
+          <th>BMC state</th>
+          <th>MYNET last check inc</th>
+          <th>MYNET subscription id</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r[0] }}</td>
+          <td>{{ r[1] }}</td>
+          <td>{{ r[2] }}</td>
+          <td>{{ r[3] or '—' }}</td>
+          <td>{{ r[4] }}</td>
+          <td>{{ r[5] }}</td>
+          <td>{{ r[6] }}</td>
+          <td>{{ r[7] }}</td>
+          <td>{{ r[8] }}</td>
+          <td>{{ r[9] }}</td>
+          <td>{{ r[10] }}</td>
+          <td>{{ r[11] }}</td>
+          <td>{{ r[12] }}</td>
+
+          <td><span class="badge {% if r[13] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[13] else 'Non' }}</span></td>
+          <td><span class="badge {% if r[14] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[14] else 'Non' }}</span></td>
+          <td><span class="badge {% if r[15] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[15] else 'Non' }}</span></td>
+          <td>{{ r[16] or '—' }}</td>
+          <td>{{ r[17] or '—' }}</td>
+          <td>{{ r[18] or '—' }}</td>
+
+          <td><span class="badge {% if r[19] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[19] else 'Non' }}</span></td>
+          <td>{{ r[20] or '—' }}</td>
+          <td>{{ r[21] or '—' }}</td>
+          <td>{{ r[22] or '—' }}</td>
+
+          <td><span class="badge {% if r[23] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[23] else 'Non' }}</span></td>
+          <td>{{ r[24] or '—' }}</td>
+          <td>{{ r[25] or '—' }}</td>
+          <td>{{ r[26] or '—' }}</td>
+
+          <td><span class="badge {% if r[27] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[27] else 'Non' }}</span></td>
+          <td>{{ r[28] or '—' }}</td>
+          <td>{{ r[29] or '—' }}</td>
+          <td>{{ r[30] or '—' }}</td>
+
+          <td>{{ r[31] or '—' }}</td>
+          <td>{{ r[32] or '—' }}</td>
+          <td><span class="badge {% if r[33] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[33] else 'Non' }}</span></td>
+          <td>{{ r[34] or '—' }}</td>
+          <td>{{ r[35] or '—' }}</td>
+
+          <td>{{ r[36] or '—' }}</td>
+          <td>{{ r[37] or '—' }}</td>
+          <td>{{ r[38] or '—' }}</td>
+          <td><span class="badge {% if r[39] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[39] else 'Non' }}</span></td>
+          <td>{{ r[40] or '—' }}</td>
+          <td>{{ r[41] or '—' }}</td>
+          <td>{{ r[42] or '—' }}</td>
+          <td>{{ r[43] or '—' }}</td>
+          <td>{{ r[44] or '—' }}</td>
+          <td>{{ r[45] or '—' }}</td>
+          <td>{{ r[46] or '—' }}</td>
+          <td>{{ r[47] or '—' }}</td>
+          <td>{{ r[48] or '—' }}</td>
+
+          <td>{{ r[49] or '—' }}</td>
+          <td>{{ r[50] or '—' }}</td>
+          <td>{{ r[51] or '—' }}</td>
+          <td>{{ r[52] or '—' }}</td>
+          <td><span class="badge {% if r[53] %}ok{% else %}ko{% endif %}">{{ 'Oui' if r[53] else 'Non' }}</span></td>
+          <td>{{ r[54] or '—' }}</td>
+          <td>{{ r[55] or '—' }}</td>
+          <td>{{ r[56] or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="table-footer">
       <div>Total: {{ total }}</div>
-      <div>
+      <div class="pager">
         {% if page > 1 %}
-          <a class="btn" href="/pool_servers?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q }}">Précédent</a>
+          <a class="btn" href="/pool_servers?page={{ page - 1 }}&per_page={{ per_page }}&q={{ q or '' }}">Précédent</a>
         {% endif %}
         <span>Page {{ page }}</span>
         {% if (page * per_page) < total %}
-          <a class="btn" href="/pool_servers?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q }}">Suivant</a>
+          <a class="btn" href="/pool_servers?page={{ page + 1 }}&per_page={{ per_page }}&q={{ q or '' }}">Suivant</a>
         {% endif %}
       </div>
     </div>
   </div>
-
 </body>
 </html>
