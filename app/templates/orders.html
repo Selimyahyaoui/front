@@ -6,7 +6,10 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
+    :root{
+      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+      --card:#fff; --bg:#f7f7f9; --brand:#14823b;
+    }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -17,8 +20,9 @@
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);
       border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
     .toolbar .spacer{flex:1}
-    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600}
+    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
     .btn--ghost{background:#fff;color:#111;border:1px solid var(--border)}
+    .btn--sm{padding:6px 10px;font-size:13px}
     .input{border:1px solid var(--border);border-radius:8px;padding:6px 10px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
     table{width:100%;border-collapse:separate;border-spacing:0}
@@ -27,8 +31,11 @@
     td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
     tbody tr:nth-child(odd){background:#fcfcfe}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
-    .ok{background:#e7f6ea}.bad{background:#fdeaea}.muted{color:var(--muted)}
+    .ok{background:#e7f6ea}
+    .warn{background:#fff8e1}
+    .bad{background:#fdeaea}
     .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:12px}
+    .muted{color:var(--muted)}
   </style>
 </head>
 <body>
@@ -40,7 +47,7 @@
     </div>
 
     <form class="toolbar" action="/orders" method="get">
-      <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (PO, projet, ver)">
+      <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (PO, projet, vendor)…">
       <div class="spacer"></div>
       <label class="muted">Par page
         <select class="input" name="per_page" onchange="this.form.submit()">
@@ -52,9 +59,6 @@
       <button class="btn btn--ghost" type="submit">Chercher</button>
       <a class="btn btn--ghost" href="/">Accueil</a>
     </form>
-
-    {% set yes = '<span class="pill ok">Oui</span>' %}
-    {% set no  = '<span class="pill bad">Non</span>' %}
 
     <div class="card">
       <div style="overflow:auto; max-height:70vh">
@@ -73,36 +77,35 @@
             </tr>
           </thead>
           <tbody>
-            {% for r in rows %}
-              <tr>
-                <td>{{ r[0] }}</td>
-                <td>{{ r[1] }}</td>
-                <td>{{ r[2] }}</td>
-                <td>{{ r[3] }}</td>
-                <td>{{ r[4] }}</td>
-                <td>{{ r[5] }}</td>
-                <td>
-                  {% set s = (r[6] or '') %}
-                  {% if s.lower().strip() in ['shipped','confirmed','delivered'] %}
-                    <span class="pill ok">{{ s }}</span>
-                  {% elif s %}
-                    <span class="pill">{{ s }}</span>
-                  {% else %}
-                    <span class="muted">—</span>
-                  {% endif %}
-                </td>
-                <td>{{ r[7] or '' }}</td>
-                <td>
-                  {% if r[8] %}
-                    <a class="btn btn--ghost" href="/orders/{{ r[0] }}/dell">Détails</a>
-                  {% else %}
-                    <span class="muted">—</span>
-                  {% endif %}
-                </td>
-              </tr>
+            {% for row in rows %}
+            <tr>
+              <!-- ordre des colonnes conforme au SELECT de orders.py -->
+              <td>{{ row[0] }}</td>  {# t_order_servers_id #}
+              <td>{{ row[1] }}</td>  {# po_number #}
+              <td class="muted">{{ row[2] or '' }}</td>  {# project_name #}
+              <td>{{ row[3] }}</td>  {# date_add #}
+              <td>{{ row[4] }}</td>  {# business_unit #}
+              <td>{{ row[5] }}</td>  {# vendor #}
+              <td>
+                {% set st = (row[6] or '')|lower %}
+                {% if 'ship' in st %}
+                  <span class="pill ok">{{ row[6] }}</span>
+                {% elif 'cancel' in st %}
+                  <span class="pill bad">{{ row[6] }}</span>
+                {% elif 'confirm' in st or 'progress' in st %}
+                  <span class="pill warn">{{ row[6] }}</span>
+                {% else %}
+                  <span class="pill">{{ row[6] or '—' }}</span>
+                {% endif %}
+              </td>
+              <td>{{ row[7] or '—' }}</td>  {# ap_code_authorized #}
+              <td>
+                <a class="btn btn--ghost btn--sm" href="/orders/{{ row[0] }}/dell">Détails</a>
+              </td>
+            </tr>
             {% endfor %}
             {% if rows|length == 0 %}
-              <tr><td colspan="9" class="muted">Aucun enregistrement.</td></tr>
+            <tr><td colspan="9" class="muted">Aucun enregistrement.</td></tr>
             {% endif %}
           </tbody>
         </table>
