@@ -77,37 +77,54 @@ def list_orders(request: Request, q: str = "", page: int = 1, per_page: int = 10
 
 
 # ---- Dell Order Details (new for Jira ticket AER_BMAAS-84) ----
-@router.get("/{order_id}/dell", response_class=HTMLResponse)
+@router.get("/orders/{order_id}/dell", response_class=HTMLResponse)
 def dell_detail(request: Request, order_id: int):
     """
-    Show linked Dell order details for a given t_order_servers entry.
+    Show Dell order details linked to a given t_order_servers entry.
     """
-
     conn = get_connection()
     cur = conn.cursor()
 
     sql = """
-        SELECT d.id, d.order_number, d.order_date, d.quote_number,
-               d.dell_purchase_id, d.order_status, d.status_datetime,
-               p.sku_number, p.description, p.item_quantity, p.line_of_business
-        FROM supchain.t_order_servers s
-        JOIN supchain.t_dell_orders d
-          ON s.t_order_servers_id = d.purchase_order_id
-        LEFT JOIN supchain.t_product_info p
-          ON d.id = p.dell_order_id
+        SELECT
+            d.id, d.order_number, d.order_date, d.quote_number,
+            d.dell_purchase_id, d.order_status, d.status_datetime,
+            p.sku_number, p.description, p.item_quantity, p.line_of_business,
+            s.t_order_servers_po_number,            -- idx 11
+            s.t_order_servers_project_name          -- idx 12
+        FROM supchain.t_order_servers AS s
+        LEFT JOIN supchain.t_dell_orders  AS d ON s.t_order_servers_id = d.purchase_order_id
+        LEFT JOIN supchain.t_product_info AS p ON d.id = p.dell_order_id
         WHERE s.t_order_servers_id = %s
+        ORDER BY d.id NULLS LAST, p.id NULLS LAST
     """
     cur.execute(sql, (order_id,))
     rows = cur.fetchall()
 
-    cur.close()
+    # Build a small header dict for the template title
+    if rows:
+        po_number   = rows[0][11] or ""
+        project_name = rows[0][12] or ""
+    else:
+        # Fallback when there are no dell rows yet
+        cur.execute("""
+            SELECT t_order_servers_po_number, t_order_servers_project_name
+            FROM supchain.t_order_servers
+            WHERE t_order_servers_id = %s
+        """, (order_id,))
+        rec = cur.fetchone()
+        po_number, project_name = (rec or ("", ""))
+
     conn.close()
 
+    header = {"po": po_number, "project": project_name}
+
     return templates.TemplateResponse(
-        "order_dell_detail.html",
+        "orders_dell.html",
         {
             "request": request,
             "order_id": order_id,
             "rows": rows,
+            "header": header,     # <<< was missing
         },
     )
