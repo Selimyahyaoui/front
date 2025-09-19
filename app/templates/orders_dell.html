@@ -2,30 +2,32 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Suivi Dell — Commande {{ header[0] }}</title>
+  <title>Suivi Dell – Commande {{ header.po }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
+    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b;}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
-    .shell{max-width:1100px;margin:24px auto;padding:0 16px}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
     .hero{display:flex;align-items:center;gap:12px;background:var(--card);
       border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
-    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
+    .hero img{height:28px}
+    .hero h1{margin:0;font-size:18px}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);
       border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
-    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600}
     .btn--ghost{background:#fff;color:#111;border:1px solid var(--border)}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:12px}
     table{width:100%;border-collapse:separate;border-spacing:0}
     thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;text-transform:uppercase;color:#6b7280;padding:10px}
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
     td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
-    .muted{color:#6b7280}
+    tbody tr:nth-child(odd){background:#fcfcfe}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
     .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
+    .muted{color:var(--muted)}
   </style>
 </head>
 <body>
@@ -33,7 +35,7 @@
 
     <div class="hero">
       <img src="/static/bnp_logo.png" alt="BNP">
-      <h1>Suivi Dell — Commande {{ header[0] }}</h1>
+      <h1>Suivi Dell – Commande {{ header.po }} <span class="muted">({{ header.project }})</span></h1>
     </div>
 
     <div class="toolbar">
@@ -41,71 +43,55 @@
     </div>
 
     <div class="card">
-      <div class="grid">
-        <div><span class="muted">PO Number</span><br>{{ header[1] }}</div>
-        <div><span class="muted">Projet</span><br>{{ header[2] }}</div>
-        <div><span class="muted">Ajouté le</span><br>{{ header[3] }}</div>
-        <div><span class="muted">BU</span><br>{{ header[4] }}</div>
-        <div><span class="muted">Vendor</span><br>{{ header[5] }}</div>
-        <div><span class="muted">AP Code</span><br>{{ header[7] or '—' }}</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="padding:12px">
-        <h3 style="margin:0 0 8px 0">Dernier statut Dell</h3>
-        {% if not dell %}
-          <div class="muted">Aucune information Dell disponible.</div>
-        {% else %}
-          {% set st = (dell[5] or '')|trim|lower %}
-          <div class="grid">
-            <div><span class="muted">Order #</span><br>{{ dell[1] }}</div>
-            <div><span class="muted">Quote #</span><br>{{ dell[3] }}</div>
-            <div><span class="muted">Dell Purchase ID</span><br>{{ dell[4] }}</div>
-            <div><span class="muted">Order date</span><br>{{ dell[2] }}</div>
-            <div><span class="muted">Status</span><br>
-              {% if st in ['confirmed','processing','in progress'] %}
-                <span class="pill warn">{{ dell[5] }}</span>
-              {% elif st in ['shipped','completed'] %}
-                <span class="pill ok">{{ dell[5] }}</span>
-              {% elif st in ['cancelled','canceled'] %}
-                <span class="pill bad">{{ dell[5] }}</span>
-              {% else %}
-                <span class="pill">{{ dell[5] or '—' }}</span>
-              {% endif %}
-            </div>
-            <div><span class="muted">Mis à jour</span><br>{{ dell[6] }}</div>
-          </div>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="card">
-      <div style="overflow:auto; max-height:60vh">
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Description</th>
-              <th>Qté</th>
-              <th>Ligne métier</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for it in items %}
+      {% if rows|length == 0 %}
+        <div style="padding:14px" class="muted">Aucun détail Dell trouvé pour cette commande.</div>
+      {% else %}
+        <div style="overflow:auto; max-height:70vh">
+          <table>
+            <thead>
               <tr>
-                <td>{{ it[0] }}</td>
-                <td>{{ it[1] }}</td>
-                <td>{{ it[2] }}</td>
-                <td>{{ it[3] }}</td>
+                <th>Dell Order ID</th>
+                <th>Order #</th>
+                <th>Order date</th>
+                <th>Quote #</th>
+                <th>Dell purchase ID</th>
+                <th>Statut</th>
+                <th>Maj statut</th>
+                <th>SKU</th>
+                <th>Description</th>
+                <th>Qté</th>
+                <th>Ligne métier</th>
               </tr>
-            {% endfor %}
-            {% if items|length == 0 %}
-              <tr><td colspan="4" class="muted">Aucun item.</td></tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {% for r in rows %}
+              <tr>
+                <td>{{ r[0] }}</td>
+                <td>{{ r[1] }}</td>
+                <td>{{ r[2] }}</td>
+                <td>{{ r[3] }}</td>
+                <td>{{ r[4] }}</td>
+                <td>
+                  {% set st=(r[5] or '')|lower %}
+                  {% if st in ['shipped','confirmed','delivered'] %}
+                    <span class="pill ok">{{ r[5] }}</span>
+                  {% elif st in ['in progress','processing'] %}
+                    <span class="pill warn">{{ r[5] }}</span>
+                  {% else %}
+                    <span class="pill bad">{{ r[5] or '—' }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ r[6] }}</td>
+                <td>{{ r[7] }}</td>
+                <td class="muted">{{ r[8] }}</td>
+                <td>{{ r[9] }}</td>
+                <td class="muted">{{ r[10] }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
     </div>
 
   </div>
