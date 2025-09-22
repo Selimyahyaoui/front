@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Suivi Dell – Commande {{ header[0] if header else order_id }}</title>
+  <title>Suivi Dell – Commande {{ (header.order_number if header else order_id) }}</title>
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
@@ -10,78 +10,180 @@
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+
     .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
-    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
+    .hero img{height:28px}
+    .hero h1{margin:0;font-size:18px}
+
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
-    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
+    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
     .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
+    .muted{color:var(--muted)}
+
+    .card{overflow:hidden}
+    .scroll{overflow:auto;max-height:70vh}
+
     table{width:100%;border-collapse:separate;border-spacing:0}
     thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
       font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
     td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
-    .muted{color:var(--muted)}
+
+    .toggle{font-weight:700;width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center}
+    .nested{background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;padding:10px;margin-top:8px;display:none}
+    .nested table{background:#fff;border:1px solid var(--border);border-radius:8px}
+    .nested thead th{position:static}
+    .row-header{display:flex;align-items:center;gap:8px}
   </style>
+  <script>
+    function toggle(id, btnId){
+      const el = document.getElementById(id);
+      const btn = document.getElementById(btnId);
+      if(!el) return;
+      const show = el.style.display === "none" || el.style.display === "";
+      el.style.display = show ? "block" : "none";
+      if(btn){ btn.textContent = show ? "−" : "+"; }
+    }
+  </script>
 </head>
 <body>
 <div class="shell">
 
+  <!-- En-tête -->
   <div class="hero">
     <img src="/static/bnp_logo.png" alt="BNP">
-    <h1>Suivi Dell – Commande {{ header[0] if header else order_id }}</h1>
+    <h1>Suivi Dell – Commande {{ (header.order_number if header else order_id) }}</h1>
   </div>
 
+  <!-- Barre d’outils + méta -->
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
     {% if header %}
-      <div class="muted">N° devis: <b>{{ header[2] }}</b> • Statut: <b>{{ header[3] }}</b> • Maj: {{ header[4] }}</div>
+      <div class="muted">
+        N° devis: <b>{{ header.quote_number }}</b> •
+        Statut:
+        {% set s = (header.order_status or '') %}
+        {% if s|lower == 'shipped' %}
+          <span class="pill ok">{{ s }}</span>
+        {% elif s|lower in ['confirmed','in progress','processing'] %}
+          <span class="pill warn">{{ s }}</span>
+        {% else %}
+          <span class="pill bad">{{ s or '—' }}</span>
+        {% endif %}
+        • Maj: {{ header.status_datetime or '—' }}
+      </div>
     {% endif %}
   </div>
 
-  <div class="card" style="overflow:auto; max-height:70vh">
-    <table>
-      <thead>
-        <tr>
-          <th>Dell Order ID</th>
-          <th>Order #</th>
-          <th>Order date</th>
-          <th>Quote #</th>
-          <th>Dell Purchase ID</th>
-          <th>Statut</th>
-          <th>Maj statut</th>
-          <th>SKU</th>
-          <th>Description</th>
-          <th>Qté</th>
-          <th>LOB</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rows %}
-        <tr>
-          <td>{{ r[0] }}</td>
-          <td>{{ r[1] }}</td>
-          <td>{{ r[2] }}</td>
-          <td>{{ r[3] }}</td>
-          <td>{{ r[4] }}</td>
-          <td>
-            {% set s=(r[5] or '') %}
-            {% if s|lower=='shipped' %}<span class="pill ok">{{ s }}</span>
-            {% elif s|lower in ['confirmed','in progress','processing'] %}<span class="pill warn">{{ s }}</span>
-            {% else %}<span class="pill bad">{{ s or '—' }}</span>{% endif %}
-          </td>
-          <td>{{ r[6] or '—' }}</td>
-          <td>{{ r[7] or '—' }}</td>
-          <td class="muted">{{ r[8] or '' }}</td>
-          <td>{{ r[9] or '—' }}</td>
-          <td>{{ r[10] or '—' }}</td>
-        </tr>
-        {% endfor %}
-        {% if rows|length == 0 %}
-        <tr><td colspan="11" class="muted">Aucun détail Dell pour cette commande.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
+  <!-- Tableau Produits -->
+  <div class="card">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>SKU</th>
+            <th>Description</th>
+            <th>Qté</th>
+            <th>LOB</th>
+            <th>Assets</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in (products or []) %}
+          {% set pid = 'p' ~ loop.index %}
+          <tr>
+            <td style="width:44px">
+              <button id="btn-{{ pid }}" class="btn toggle" onclick="toggle('{{ pid }}','btn-{{ pid }}')">+</button>
+            </td>
+            <td><div class="row-header">{{ p.sku or p['sku'] }}</div></td>
+            <td class="muted">{{ p.description or p['description'] }}</td>
+            <td>{{ p.qty or p['qty'] }}</td>
+            <td>{{ p.lob or p['lob'] }}</td>
+            <td>
+              {% if p.assets and p.assets|length>0 %}
+                {{ p.assets|length }} asset(s)
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          <!-- Bloc assets (niveau 1) -->
+          <tr>
+            <td colspan="6">
+              <div id="{{ pid }}" class="nested">
+                {% if p.assets and p.assets|length>0 %}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width:44px"></th>
+                        <th>Service Tag</th>
+                        <th>Asset Tag</th>
+                        <th>MACs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for a in p.assets %}
+                      {% set aid = pid ~ '-a' ~ loop.index %}
+                      <tr>
+                        <td>
+                          <button id="btn-{{ aid }}" class="btn toggle" onclick="toggle('{{ aid }}','btn-{{ aid }}')">+</button>
+                        </td>
+                        <td>{{ a.service_tag or a['service_tag'] or '—' }}</td>
+                        <td>{{ a.asset_tag or a['asset_tag'] or '—' }}</td>
+                        <td>
+                          {% if a.macs and a.macs|length>0 %}
+                            {{ a.macs|length }} MAC(s)
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                      </tr>
+                      <!-- Bloc MACs (niveau 2) -->
+                      <tr>
+                        <td colspan="4">
+                          <div id="{{ aid }}" class="nested">
+                            {% if a.macs and a.macs|length>0 %}
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>MAC Address</th>
+                                    <th>Type</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {% for m in a.macs %}
+                                  <tr>
+                                    <td><code>{{ m.mac_address or m['mac_address'] }}</code></td>
+                                    <td>{{ m.mac_type or m['mac_type'] or '—' }}</td>
+                                  </tr>
+                                  {% endfor %}
+                                </tbody>
+                              </table>
+                            {% else %}
+                              <span class="muted">Aucune MAC pour cet asset.</span>
+                            {% endif %}
+                          </div>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% else %}
+                  <span class="muted">Aucun asset pour ce produit.</span>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+
+          {% if (products or [])|length == 0 %}
+          <tr><td colspan="6" class="muted">Aucun produit associé à cette commande.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
 </div>
