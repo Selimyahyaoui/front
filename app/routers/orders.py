@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
-from app.db.database import get_connection  # your existing helper
+from app.db.database import get_connection  # uses your existing helper
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -33,8 +33,7 @@ def list_orders(
         params_rows.extend([like, like, like])
 
     count_sql = f"""
-      SELECT COUNT(*)
-      FROM supchain.t_order_servers
+      SELECT COUNT(*) FROM supchain.t_order_servers
       {where_sql}
     """
 
@@ -76,118 +75,101 @@ def list_orders(
     )
 
 
-# ---------- Dell detail (AER_BMAAS-84) + children (product -> asset_details -> mac)
+# ---------- Dell detail (AER_BMAAS-84) with product+assets rows
 @router.get("/orders/{order_id}/dell", response_class=HTMLResponse)
 def dell_detail(request: Request, order_id: int):
     """
-    Read-only detail page:
-    t_order_servers -> t_dell_orders -> t_product_info
-                                    -> t_asset_details (via product_info_id)
-                                    -> t_mac_address  (via asset_details_id)
-    No extra API calls.
+    Show Dell order details linked to t_order_servers row `order_id`.
+    Product rows come from t_product_info; asset rows from t_asset_details + t_mac_address.
     """
-
     conn = get_connection()
     cur = conn.cursor()
 
-    # Header (one row from t_dell_orders; keep exactly what we had working)
-    head_sql = """
-      SELECT
-        d.order_number, d.order_date, d.quote_number, d.order_status, d.status_datetime
-      FROM supchain.t_order_servers s
-      LEFT JOIN supchain.t_dell_orders d
-        ON s.t_order_servers_id = d.purchase_order_id
-      WHERE s.t_order_servers_id = %s
-      ORDER BY d.id NULLS LAST
-      LIMIT 1
-    """
-    cur.execute(head_sql, (order_id,))
-    header = cur.fetchone()  # tuple or None
+    # Header (quote / status / last update) - derive from any linked Dell order
+    cur.execute(
+        """
+        SELECT d.order_number, d.order_date, d.quote_number, d.order_status, d.status_datetime
+        FROM supchain.t_order_servers s
+        LEFT JOIN supchain.t_dell_orders d ON s.t_order_servers_id = d.purchase_order_id
+        WHERE s.t_order_servers_id = %s
+        ORDER BY d.status_datetime DESC NULLS LAST, d.id ASC
+        LIMIT 1
+        """,
+        (order_id,),
+    )
+    header = cur.fetchone()
 
-    # Flat rows for product + asset + mac (LEFT JOINs so it's safe when missing)
-    rows_sql = """
-      SELECT
-        p.id                           AS product_id,
-        p.sku_number,
-        p.description,
-        p.item_quantity,
-        p.line_of_business,
+    # Product rows (one row per product in the Dell order)
+    cur.execute(
+        """
+        SELECT
+          d.id          AS dell_id,
+          p.id          AS product_id,
+          p.sku_number,
+          p.description,
+          p.item_quantity,
+          p.line_of_business
+        FROM supchain.t_order_servers s
+        LEFT JOIN supchain.t_dell_orders  d ON s.t_order_servers_id = d.purchase_order_id
+        LEFT JOIN supchain.t_product_info p ON d.id = p.dell_order_id
+        WHERE s.t_order_servers_id = %s
+        ORDER BY COALESCE(p.id, 0), d.id
+        """,
+        (order_id,),
+    )
+    prod_rows = cur.fetchall()
 
-        ad.id                          AS asset_id,
-        ad.service_tag,
-        ad.asset_tag,
+    # Collect product ids to load assets
+    product_ids = [r[1] for r in prod_rows if r[1] is not None]
+    assets_by_prod: dict[int, list] = {}
 
-        ma.mac_address,
-        ma.mac_type
-      FROM supchain.t_order_servers s
-      LEFT JOIN supchain.t_dell_orders d
-        ON s.t_order_servers_id = d.purchase_order_id
-      LEFT JOIN supchain.t_product_info p
-        ON d.id = p.dell_order_id
-      LEFT JOIN supchain.t_asset_details ad
-        ON ad.product_info_id = p.id
-      LEFT JOIN supchain.t_mac_address ma
-        ON ma.asset_details_id = ad.id
-      WHERE s.t_order_servers_id = %s
-      ORDER BY p.id NULLS LAST, ad.id NULLS LAST, ma.id NULLS LAST
-    """
-    cur.execute(rows_sql, (order_id,))
-    flat_rows = cur.fetchall()
+    if product_ids:
+        # Build a safe IN clause
+        placeholders = ",".join(["%s"] * len(product_ids))
+        cur.execute(
+            f"""
+            SELECT
+              a.product_info_id,
+              a.service_tag,
+              a.asset_tag,
+              m.mac_address,
+              m.mac_type
+            FROM supchain.t_asset_details a
+            LEFT JOIN supchain.t_mac_address m ON m.asset_details_id = a.id
+            WHERE a.product_info_id IN ({placeholders})
+            ORDER BY a.id, m.id
+            """,
+            tuple(product_ids),
+        )
+
+        for pid, service_tag, asset_tag, mac_address, mac_type in cur.fetchall():
+            # Start a new asset set when service_tag/asset_tag changes
+            lst = assets_by_prod.setdefault(pid, [])
+            if not lst or lst[-1].get("service_tag") != service_tag or lst[-1].get("asset_tag") != asset_tag:
+                lst.append({"service_tag": service_tag, "asset_tag": asset_tag, "macs": []})
+            if mac_address:
+                lst[-1]["macs"].append({"mac_address": mac_address, "mac_type": mac_type})
+
     conn.close()
 
-    # Build nested structure: products -> assets -> macs
-    products_map: dict[int, dict] = {}
-    for r in flat_rows:
-        (pid, sku, desc, qty, lob,
-         aid, service_tag, asset_tag,
-         mac_addr, mac_type) = r
-
-        if pid is None:
-            # no product rows (possible if only header exists)
+    # Shape rows for the template: (sku, description, qty, lob, assets_list)
+    items = []
+    for _dell_id, product_id, sku, desc, qty, lob in prod_rows:
+        # Skip pure-null p rows; they happen if there is a Dell order but no product lines
+        if product_id is None and sku is None and desc is None and qty is None and lob is None:
             continue
+        items.append((sku, desc, qty, lob, assets_by_prod.get(product_id, [])))
 
-        prod = products_map.get(pid)
-        if not prod:
-            prod = {
-                "product_id": pid,
-                "sku": sku or "",
-                "description": desc or "",
-                "qty": qty or 0,
-                "lob": lob or "",
-                "assets": {}
-            }
-            products_map[pid] = prod
-
-        if aid:
-            asset = prod["assets"].get(aid)
-            if not asset:
-                asset = {
-                    "asset_id": aid,
-                    "service_tag": service_tag or "",
-                    "asset_tag": asset_tag or "",
-                    "macs": []
-                }
-                prod["assets"][aid] = asset
-
-            if mac_addr:
-                asset["macs"].append({
-                    "mac_address": mac_addr,
-                    "mac_type": mac_type or ""
-                })
-
-    # convert assets dicts to lists for the template
-    products = []
-    for prod in products_map.values():
-        assets_list = list(prod["assets"].values())
-        prod["assets"] = assets_list
-        products.append(prod)
+    # If we have a Dell header but still no products, show a single placeholder line
+    if not items and header:
+        items.append((None, None, None, None, []))
 
     return templates.TemplateResponse(
         "orders_dell.html",
         {
             "request": request,
             "order_id": order_id,
-            "header": header,      # tuple: (order_number, order_date, quote, status, status_datetime)
-            "products": products,  # list[ { sku, description, qty, lob, assets:[{service_tag, asset_tag, macs:[...]}] } ]
+            "header": header,
+            "rows": items,  # <— what the template iterates
         },
     )
