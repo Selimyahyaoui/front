@@ -6,10 +6,7 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
-      --card:#fff; --bg:#f7f7f9; --brand:#14823b;
-    }
+    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -23,24 +20,16 @@
     .muted{color:var(--muted)}
 
     .card{overflow:hidden}
-    .card-scroll{overflow:auto;max-height:70vh}
-
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{
-      position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px;text-align:left
-    }
-    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
-    tbody tr:nth-child(odd){background:#fcfcfe}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+    tbody td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
 
-    /* nested details table */
-    .details{
-      border:1px solid var(--border);border-radius:8px;padding:10px;background:#fff
-    }
-    .details h4{margin:0 0 8px 0;font-size:13px;color:var(--muted)}
-    .btn-toggle{width:32px;height:28px;line-height:1;border-radius:6px}
-    .btn-toggle[aria-expanded="true"]{background:#eef7f0;border-color:#cfe7d6}
-    .nowrap{white-space:nowrap}
+    .details{background:#fcfcfe;border:1px solid var(--border);border-radius:8px;padding:10px}
+    .details h4{margin:0 0 6px 0;font-size:14px}
+    .btn-toggle{width:28px;height:28px;line-height:0;padding:0;border-radius:6px}
+    .btn-toggle:after{content:"+";font-weight:700}
+    .btn-toggle.active:after{content:"–"}
   </style>
 </head>
 <body>
@@ -53,90 +42,82 @@
 
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
-    <div class="muted">
-      N° devis: <b>{{ header[2] if header else '–' }}</b> •
-      Statut: <b>{{ header[3] if header else '–' }}</b> •
-      Maj: {{ header[4] if header else '–' }}
-    </div>
+    <div class="muted" style="flex:1"></div>
+    {% if header %}
+      <div class="muted">N° devis: <b>{{ header[2] }}</b> • Statut: <b>{{ header[3] }}</b> • Maj: {{ header[4] }}</div>
+    {% endif %}
   </div>
 
   <div class="card">
-    <div class="card-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th class="nowrap">SKU</th>
-            <th>Description</th>
-            <th class="nowrap">Qté</th>
-            <th class="nowrap">LOB</th>
-            <th class="nowrap">Assets</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in rows %}
-          {# r indices from backend:
-             7=sku, 8=description, 9=qty, 10=lob, 11=assets(list) #}
-          <tr>
-            <td class="nowrap">{{ r[7] or '—' }}</td>
-            <td>{{ r[8] or '—' }}</td>
-            <td class="nowrap">{{ r[9] or '—' }}</td>
-            <td class="nowrap">{{ r[10] or '—' }}</td>
-            <td class="nowrap" style="width:1%;">
-              {% if r|length > 11 and r[11] %}
-                <button class="btn btn-toggle"
-                        type="button"
-                        aria-expanded="false"
-                        aria-controls="row-{{ loop.index }}"
-                        onclick="toggleRow('row-{{ loop.index }}', this)">+</button>
-              {% else %}
-                —
-              {% endif %}
-            </td>
-          </tr>
+    <table>
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Description</th>
+          <th>Qté</th>
+          <th>LOB</th>
+          <th>Assets</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        {# r = (sku, desc, qty, lob, assets[]) #}
+        <tr>
+          <td>{{ r[0] or '—' }}</td>
+          <td>{{ r[1] or '—' }}</td>
+          <td>{{ r[2] or '—' }}</td>
+          <td>{{ r[3] or '—' }}</td>
+          <td>
+            {% if r[4] and r[4]|length > 0 %}
+              <button class="btn btn-toggle" onclick="toggleRow('asset-{{ loop.index }}', this)"></button>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
 
-          {% if r|length > 11 and r[11] %}
-          <tr id="row-{{ loop.index }}" style="display:none;">
-            <td colspan="5">
-              <div class="details">
-                <h4>Détails des assets ({{ r[11]|length }})</h4>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Service tag</th>
-                      <th>Asset tag</th>
-                      <th>MACs</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for a in r[11] %}
-                    <tr>
-                      <td class="nowrap">{{ a.service_tag or '—' }}</td>
-                      <td class="nowrap">{{ a.asset_tag or '—' }}</td>
-                      <td>
-                        {% if a.macs and a.macs|length>0 %}
-                          {% for m in a.macs %}
-                            {{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}<br>
-                          {% endfor %}
-                        {% else %}
-                          —
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </td>
-          </tr>
-          {% endif %}
-          {% endfor %}
+        {% if r[4] and r[4]|length > 0 %}
+        <tr id="asset-{{ loop.index }}" style="display:none;">
+          <td colspan="5">
+            <div class="details">
+              <h4>Détails des assets ({{ r[4]|length }})</h4>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Service Tag</th>
+                    <th>Asset Tag</th>
+                    <th>MACs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for a in r[4] %}
+                  <tr>
+                    <td>{{ a.service_tag or '—' }}</td>
+                    <td>{{ a.asset_tag or '—' }}</td>
+                    <td>
+                      {% if a.macs %}
+                        {% for m in a.macs %}
+                          {{ m.mac_address or '—' }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}{% if not loop.last %}<br>{% endif %}
+                        {% endfor %}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
 
-          {% if rows|length == 0 %}
-          <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
+        {% if rows|length == 0 %}
+        <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
   </div>
 
 </div>
@@ -144,12 +125,10 @@
 <script>
   function toggleRow(id, btn){
     var row = document.getElementById(id);
+    if(!row) return;
     var show = row.style.display === "none";
     row.style.display = show ? "table-row" : "none";
-    if(btn){
-      btn.setAttribute("aria-expanded", show ? "true" : "false");
-      btn.textContent = show ? "−" : "+";
-    }
+    if(btn){ btn.classList.toggle("active", show); }
   }
 </script>
 </body>
