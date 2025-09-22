@@ -13,24 +13,22 @@
     .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
     .hero img{height:28px}.hero h1{margin:0;font-size:18px}
-    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
-    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
+    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
+    .muted{color:var(--muted)}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
     .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
-    .muted{color:var(--muted)}
 
-    .card{overflow:hidden}
     table{width:100%;border-collapse:separate;border-spacing:0}
     thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
       font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
-    tbody td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
+    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
 
-    /* Nested details table inside the full-width row */
-    .details{background:#fcfcfe;border:1px solid var(--border);border-radius:8px;padding:10px}
-    .details h4{margin:0 0 6px 0;font-size:14px}
-    .btn-toggle{width:28px;height:28px;line-height:0;padding:0;border-radius:6px}
-    .btn-toggle:after{content:"+";font-weight:700}
-    .btn-toggle.active:after{content:"–"}
+    .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px}
+    .child{display:none;background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;padding:10px;margin-top:8px}
+    .child table{background:#fff;border:1px solid var(--border);border-radius:8px}
+    .child thead th{position:static}
+    .mac-badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin-right:6px;display:inline-block}
   </style>
 </head>
 <body>
@@ -43,83 +41,80 @@
 
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
-    <div class="muted" style="flex:1"></div>
     {% if header %}
-      <div class="muted">N° devis: <b>{{ header[2] }}</b> • Statut: <b>{{ header[3] }}</b> • Maj: {{ header[4] }}</div>
+      <div class="muted">
+        N° devis: <b>{{ header[2] }}</b> •
+        Statut: <b>{{ header[3] }}</b> •
+        Maj: {{ header[4] }}
+      </div>
+    {% else %}
+      <div class="muted">—</div>
     {% endif %}
   </div>
 
-  <div class="card">
+  <div class="card" style="overflow:auto; max-height:70vh">
     <table>
       <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Description</th>
-          <th>Qté</th>
-          <th>LOB</th>
-          <th>Assets</th>
-        </tr>
+      <tr>
+        <th style="width:80px">Assets</th>
+        <th>SKU</th>
+        <th>Description</th>
+        <th>Qté</th>
+        <th>LOB</th>
+      </tr>
       </thead>
       <tbody>
-        {% for r in rows %}
-        {# Expected structure:
-           r[7]=sku, r[8]=description, r[9]=qty, r[10]=lob,
-           r[11]=assets (optional list of {service_tag, asset_tag, macs:[{mac_address, mac_type}]})
-        #}
+      {% for p in products %}
         <tr>
-          <td>{{ r[7] or '—' }}</td>
-          <td>{{ r[8] or '—' }}</td>
-          <td>{{ r[9] or '—' }}</td>
-          <td>{{ r[10] or '—' }}</td>
           <td>
-            {% if r|length > 11 and r[11] %}
-              <button class="btn btn-toggle" onclick="toggleRow('asset-{{ loop.index }}', this)"></button>
-            {% else %}
-              —
-            {% endif %}
+            <button class="toggle" onclick="toggleChild('p{{ p.product_id }}')">+</button>
           </td>
+          <td>{{ p.sku }}</td>
+          <td class="muted">{{ p.description }}</td>
+          <td>{{ p.qty }}</td>
+          <td>{{ p.lob }}</td>
         </tr>
-
-        {% if r|length > 11 and r[11] %}
-        <tr id="asset-{{ loop.index }}" style="display:none;">
+        <tr id="p{{ p.product_id }}" class="child">
           <td colspan="5">
-            <div class="details">
-              <h4>Détails des assets ({{ r[11]|length }})</h4>
-              <table>
+            <div>
+              <b>Détails des assets ({{ p.assets|length }})</b>
+              <table style="width:100%; margin-top:8px">
                 <thead>
                   <tr>
-                    <th>Service Tag</th>
-                    <th>Asset Tag</th>
+                    <th style="width:160px">Service Tag</th>
+                    <th style="width:160px">Asset Tag</th>
                     <th>MACs</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {% for a in r[11] %}
-                  <tr>
-                    <td>{{ a.service_tag or '—' }}</td>
-                    <td>{{ a.asset_tag or '—' }}</td>
-                    <td>
-                      {% if a.macs %}
-                        {% for m in a.macs %}
-                          {{ m.mac_address or '—' }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}{% if not loop.last %}<br>{% endif %}
-                        {% endfor %}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </td>
-                  </tr>
+                {% if p.assets|length == 0 %}
+                  <tr><td colspan="3" class="muted">Aucun asset lié à ce produit.</td></tr>
+                {% else %}
+                  {% for a in p.assets %}
+                    <tr>
+                      <td>{{ a.service_tag or '—' }}</td>
+                      <td>{{ a.asset_tag or '—' }}</td>
+                      <td>
+                        {% if a.macs|length == 0 %}
+                          <span class="muted">—</span>
+                        {% else %}
+                          {% for m in a.macs %}
+                            <span class="mac-badge">{{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}</span>
+                          {% endfor %}
+                        {% endif %}
+                      </td>
+                    </tr>
                   {% endfor %}
+                {% endif %}
                 </tbody>
               </table>
             </div>
           </td>
         </tr>
-        {% endif %}
-        {% endfor %}
-
-        {% if rows|length == 0 %}
+      {% endfor %}
+      {% if products|length == 0 %}
         <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
-        {% endif %}
+      {% endif %}
       </tbody>
     </table>
   </div>
@@ -127,12 +122,13 @@
 </div>
 
 <script>
-  function toggleRow(id, btn){
-    var row = document.getElementById(id);
-    if(!row) return;
-    var show = row.style.display === "none";
-    row.style.display = show ? "table-row" : "none";
-    if(btn){ btn.classList.toggle("active", show); }
+  function toggleChild(id){
+    const row = document.getElementById(id);
+    const isOpen = row.style.display === 'table-row';
+    row.style.display = isOpen ? 'none' : 'table-row';
+    // swap + / -
+    const btn = document.querySelector('button.toggle[onclick*="'+id+'"]');
+    if (btn) btn.textContent = isOpen ? '+' : '–';
   }
 </script>
 </body>
