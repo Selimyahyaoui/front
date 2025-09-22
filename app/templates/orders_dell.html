@@ -6,29 +6,41 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
+    :root{
+      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+      --card:#fff; --bg:#f7f7f9; --brand:#14823b;
+    }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
     .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
     .hero img{height:28px}.hero h1{margin:0;font-size:18px}
-    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
-    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
-    .muted{color:var(--muted)}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
+    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
     .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
+    .muted{color:var(--muted)}
+
+    .card{overflow:hidden}
+    .card-scroll{overflow:auto;max-height:70vh}
 
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+    thead th{
+      position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px;text-align:left
+    }
     td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
+    tbody tr:nth-child(odd){background:#fcfcfe}
 
-    .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px}
-    .child{display:none;background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;padding:10px;margin-top:8px}
-    .child table{background:#fff;border:1px solid var(--border);border-radius:8px}
-    .child thead th{position:static}
-    .mac-badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin-right:6px;display:inline-block}
+    /* nested details table */
+    .details{
+      border:1px solid var(--border);border-radius:8px;padding:10px;background:#fff
+    }
+    .details h4{margin:0 0 8px 0;font-size:13px;color:var(--muted)}
+    .btn-toggle{width:32px;height:28px;line-height:1;border-radius:6px}
+    .btn-toggle[aria-expanded="true"]{background:#eef7f0;border-color:#cfe7d6}
+    .nowrap{white-space:nowrap}
   </style>
 </head>
 <body>
@@ -41,94 +53,103 @@
 
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
-    {% if header %}
-      <div class="muted">
-        N° devis: <b>{{ header[2] }}</b> •
-        Statut: <b>{{ header[3] }}</b> •
-        Maj: {{ header[4] }}
-      </div>
-    {% else %}
-      <div class="muted">—</div>
-    {% endif %}
+    <div class="muted">
+      N° devis: <b>{{ header[2] if header else '–' }}</b> •
+      Statut: <b>{{ header[3] if header else '–' }}</b> •
+      Maj: {{ header[4] if header else '–' }}
+    </div>
   </div>
 
-  <div class="card" style="overflow:auto; max-height:70vh">
-    <table>
-      <thead>
-      <tr>
-        <th style="width:80px">Assets</th>
-        <th>SKU</th>
-        <th>Description</th>
-        <th>Qté</th>
-        <th>LOB</th>
-      </tr>
-      </thead>
-      <tbody>
-      {% for p in products %}
-        <tr>
-          <td>
-            <button class="toggle" onclick="toggleChild('p{{ p.product_id }}')">+</button>
-          </td>
-          <td>{{ p.sku }}</td>
-          <td class="muted">{{ p.description }}</td>
-          <td>{{ p.qty }}</td>
-          <td>{{ p.lob }}</td>
-        </tr>
-        <tr id="p{{ p.product_id }}" class="child">
-          <td colspan="5">
-            <div>
-              <b>Détails des assets ({{ p.assets|length }})</b>
-              <table style="width:100%; margin-top:8px">
-                <thead>
-                  <tr>
-                    <th style="width:160px">Service Tag</th>
-                    <th style="width:160px">Asset Tag</th>
-                    <th>MACs</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {% if p.assets|length == 0 %}
-                  <tr><td colspan="3" class="muted">Aucun asset lié à ce produit.</td></tr>
-                {% else %}
-                  {% for a in p.assets %}
+  <div class="card">
+    <div class="card-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="nowrap">SKU</th>
+            <th>Description</th>
+            <th class="nowrap">Qté</th>
+            <th class="nowrap">LOB</th>
+            <th class="nowrap">Assets</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {# r indices from backend:
+             7=sku, 8=description, 9=qty, 10=lob, 11=assets(list) #}
+          <tr>
+            <td class="nowrap">{{ r[7] or '—' }}</td>
+            <td>{{ r[8] or '—' }}</td>
+            <td class="nowrap">{{ r[9] or '—' }}</td>
+            <td class="nowrap">{{ r[10] or '—' }}</td>
+            <td class="nowrap" style="width:1%;">
+              {% if r|length > 11 and r[11] %}
+                <button class="btn btn-toggle"
+                        type="button"
+                        aria-expanded="false"
+                        aria-controls="row-{{ loop.index }}"
+                        onclick="toggleRow('row-{{ loop.index }}', this)">+</button>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+
+          {% if r|length > 11 and r[11] %}
+          <tr id="row-{{ loop.index }}" style="display:none;">
+            <td colspan="5">
+              <div class="details">
+                <h4>Détails des assets ({{ r[11]|length }})</h4>
+                <table>
+                  <thead>
                     <tr>
-                      <td>{{ a.service_tag or '—' }}</td>
-                      <td>{{ a.asset_tag or '—' }}</td>
+                      <th>Service tag</th>
+                      <th>Asset tag</th>
+                      <th>MACs</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in r[11] %}
+                    <tr>
+                      <td class="nowrap">{{ a.service_tag or '—' }}</td>
+                      <td class="nowrap">{{ a.asset_tag or '—' }}</td>
                       <td>
-                        {% if a.macs|length == 0 %}
-                          <span class="muted">—</span>
-                        {% else %}
+                        {% if a.macs and a.macs|length>0 %}
                           {% for m in a.macs %}
-                            <span class="mac-badge">{{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}</span>
+                            {{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}<br>
                           {% endfor %}
+                        {% else %}
+                          —
                         {% endif %}
                       </td>
                     </tr>
-                  {% endfor %}
-                {% endif %}
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      {% endfor %}
-      {% if products|length == 0 %}
-        <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
-      {% endif %}
-      </tbody>
-    </table>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+
+          {% if rows|length == 0 %}
+          <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
 </div>
 
 <script>
-  function toggleChild(id){
-    const row = document.getElementById(id);
-    const isOpen = row.style.display === 'table-row';
-    row.style.display = isOpen ? 'none' : 'table-row';
-    // swap + / -
-    const btn = document.querySelector('button.toggle[onclick*="'+id+'"]');
-    if (btn) btn.textContent = isOpen ? '+' : '–';
+  function toggleRow(id, btn){
+    var row = document.getElementById(id);
+    var show = row.style.display === "none";
+    row.style.display = show ? "table-row" : "none";
+    if(btn){
+      btn.setAttribute("aria-expanded", show ? "true" : "false");
+      btn.textContent = show ? "−" : "+";
+    }
   }
 </script>
 </body>
