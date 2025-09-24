@@ -59,7 +59,6 @@
     {% endif %}
   </div>
 
-  <!-- Products (now with a Status column per product/dell order) -->
   <div class="card" style="overflow:auto; max-height:70vh">
     <table>
       <thead>
@@ -80,7 +79,8 @@
             <td>{{ p.qty or '—' }}</td>
             <td>{{ p.lob or '—' }}</td>
             <td>
-              {% set ps = (p.status or '') %}
+              {# fallback to global status if product status is empty #}
+              {% set ps = (p.status or (header and header[3]) or '') %}
               {% if ps|lower == 'shipped' %}
                 <span class="pill ok">{{ ps }}</span>
               {% elif ps|lower in ['confirmed','in progress','processing','pending'] %}
