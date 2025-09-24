@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Suivi Dell – Commande {{ header[0] if header else order_id }}</title>
+  <title>Suivi Dell – Commande {{ (header and header[0]) or order_id }}</title>
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
@@ -12,109 +12,135 @@
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
     .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
-    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
-    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
+    .hero img{height:28px}
+    .hero h1{margin:0;font-size:18px}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
     .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
     .muted{color:var(--muted)}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
-    .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
+    .ok{background:#e7f6ea}
+    .warn{background:#fff8e1}
+    .bad{background:#fdeaea}
 
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
-    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top}
+    thead th, td{
+      border-bottom:1px solid var(--border);
+      padding:10px;
+      text-align:center;        /* center everything */
+      vertical-align:middle;
+    }
+    thead th{
+      position:sticky;top:0;background:#fbfbfc;color:var(--muted);
+      text-transform:uppercase;font-size:12px
+    }
 
-    .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 10px}
+    .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px}
     .child{display:none;background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;padding:10px;margin-top:8px}
     .child table{background:#fff;border:1px solid var(--border);border-radius:8px}
     .child thead th{position:static}
-    .mac-badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin-right:6px;display:inline-block}
+    .mac-badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin-right:6px}
   </style>
 </head>
 <body>
 <div class="shell">
 
+  <!-- Header -->
   <div class="hero">
     <img src="/static/bnp_logo.png" alt="BNP">
-    <h1>Suivi Dell – Commande {{ header[0] if header else order_id }}</h1>
+    <h1>Suivi Dell – Commande {{ (header and header[0]) or order_id }}</h1>
   </div>
 
+  <!-- Top toolbar with back + dynamic status like before -->
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
     {% if header %}
+      {# header = (order_number, order_date, quote_number, status, status_datetime) #}
       <div class="muted">
-        N° devis: <b>{{ header[2] }}</b> •
-        Statut: <b>{{ header[3] }}</b> •
-        Maj: {{ header[4] }}
+        N° devis: <b>{{ header[2] or '—' }}</b> •
+        Statut:
+        {% set s = (header[3] or '') %}
+        {% if s|lower == 'shipped' %}
+          <span class="pill ok">{{ s }}</span>
+        {% elif s|lower in ['confirmed','in progress','processing','pending'] %}
+          <span class="pill warn">{{ s }}</span>
+        {% elif s %}
+          <span class="pill bad">{{ s }}</span>
+        {% else %}
+          <span class="pill">—</span>
+        {% endif %}
+        • Maj: {{ header[4] or '—' }}
       </div>
-    {% else %}
-      <div class="muted">—</div>
     {% endif %}
   </div>
 
+  <!-- Main products table -->
   <div class="card" style="overflow:auto; max-height:70vh">
     <table>
       <thead>
-      <tr>
-        <th style="width:80px">Assets</th>
-        <th>SKU</th>
-        <th>Description</th>
-        <th>Qté</th>
-        <th>LOB</th>
-      </tr>
+        <tr>
+          <th>SKU</th>
+          <th>Description</th>
+          <th>Qté</th>
+          <th>LOB</th>
+          <th>Assets</th>
+        </tr>
       </thead>
       <tbody>
-      {% for p in products %}
-        <tr>
-          <td>
-            <button class="toggle" onclick="toggleChild('p{{ p.product_id }}')">+</button>
-          </td>
-          <td>{{ p.sku }}</td>
-          <td class="muted">{{ p.description }}</td>
-          <td>{{ p.qty }}</td>
-          <td>{{ p.lob }}</td>
-        </tr>
-        <tr id="p{{ p.product_id }}" class="child">
-          <td colspan="5">
-            <div>
-              <b>Détails des assets ({{ p.assets|length }})</b>
-              <table style="width:100%; margin-top:8px">
-                <thead>
-                  <tr>
-                    <th style="width:160px">Service Tag</th>
-                    <th style="width:160px">Asset Tag</th>
-                    <th>MACs</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {% if p.assets|length == 0 %}
-                  <tr><td colspan="3" class="muted">Aucun asset lié à ce produit.</td></tr>
-                {% else %}
-                  {% for a in p.assets %}
+        {% for p in products %}
+          <tr>
+            <td>{{ p.sku or '—' }}</td>
+            <td class="muted">{{ p.description or '' }}</td>
+            <td>{{ p.qty or '—' }}</td>
+            <td>{{ p.lob or '—' }}</td>
+            <td>
+              {% if p.assets and p.assets|length > 0 %}
+                <button class="toggle" onclick="toggleChild('a{{ p.product_id }}')">+</button>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+
+          {% if p.assets and p.assets|length > 0 %}
+            <tr id="a{{ p.product_id }}" class="child">
+              <td colspan="5">
+                <div style="text-align:left">
+                  <b>Détails des assets ({{ p.assets|length }})</b>
+                </div>
+                <table style="margin-top:8px; width:100%">
+                  <thead>
                     <tr>
-                      <td>{{ a.service_tag or '—' }}</td>
-                      <td>{{ a.asset_tag or '—' }}</td>
-                      <td>
-                        {% if a.macs|length == 0 %}
-                          <span class="muted">—</span>
-                        {% else %}
-                          {% for m in a.macs %}
-                            <span class="mac-badge">{{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}</span>
-                          {% endfor %}
-                        {% endif %}
-                      </td>
+                      <th>Service Tag</th>
+                      <th>Asset Tag</th>
+                      <th>MACs</th>
                     </tr>
-                  {% endfor %}
-                {% endif %}
-                </tbody>
-              </table>
-            </div>
-          </td>
-        </tr>
-      {% endfor %}
-      {% if products|length == 0 %}
-        <tr><td colspan="5" class="muted">Aucun produit associé à cette commande.</td></tr>
-      {% endif %}
+                  </thead>
+                  <tbody>
+                    {% for a in p.assets %}
+                      <tr>
+                        <td>{{ a.service_tag or '—' }}</td>
+                        <td>{{ a.asset_tag or '—' }}</td>
+                        <td>
+                          {% if a.macs and a.macs|length>0 %}
+                            {% for m in a.macs %}
+                              <span class="mac-badge">{{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}</span>
+                            {% endfor %}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+        {% if products|length == 0 %}
+          <tr><td colspan="5" class="muted" style="text-align:left">Aucun produit associé à cette commande.</td></tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
@@ -124,11 +150,8 @@
 <script>
   function toggleChild(id){
     const row = document.getElementById(id);
-    const isOpen = row.style.display === 'table-row';
-    row.style.display = isOpen ? 'none' : 'table-row';
-    // swap + / -
-    const btn = document.querySelector('button.toggle[onclick*="'+id+'"]');
-    if (btn) btn.textContent = isOpen ? '+' : '–';
+    if(!row) return;
+    row.style.display = (row.style.display === 'table-row') ? 'none' : 'table-row';
   }
 </script>
 </body>
