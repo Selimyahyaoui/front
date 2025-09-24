@@ -50,6 +50,7 @@ async def add_order_page(request: Request):
 async def add_order_submit(request: Request, json_payload: str = Form(...)):
     """
     Receives orders from the form (hidden JSON field) and writes them to the PV.
+    The UI injects status='pending' for each line; no status input field is shown.
     This locks the page until the JSON is deleted via the DELETE API.
     """
     try:
@@ -92,7 +93,6 @@ async def orders_json_get():
     """
     if not ORDERS_JSON_PATH.exists():
         return JSONResponse({"detail": "Not found"}, status_code=404)
-    # You can also stream as JSON; FileResponse keeps it simple
     return FileResponse(path=str(ORDERS_JSON_PATH), media_type="application/json", filename="orders.json")
 
 @router.delete("/orders/json")
