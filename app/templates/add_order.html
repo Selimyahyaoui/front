@@ -14,22 +14,19 @@
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
     .hero img{height:28px}.hero h1{margin:0;font-size:18px}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
+    .toolbar .spacer{flex:1}
     .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
     .btn--ghost{background:#fff;color:#111;border:1px solid var(--border)}
-    .btn--muted{background:#f3f4f6;color:#111;border:1px solid var(--border)}
-    .input{border:1px solid var(--border);border-radius:8px;padding:8px 10px;width:100%}
-    .card{padding:0}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .input{border:1px solid var(--border);border-radius:8px;padding:6px 10px;width:100%}
+    .card{overflow:hidden}
     table{width:100%;border-collapse:separate;border-spacing:0}
     thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
-      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px;text-align:left}
     td{border-bottom:1px solid var(--border);padding:10px;vertical-align:middle}
     .row-actions{white-space:nowrap}
+    .alert{border:1px solid #f0c6c6;background:#fdecec;color:#8b2a2a;border-radius:8px;padding:10px 12px}
     .muted{color:var(--muted)}
-    .grid{overflow:auto}
-    .alert{padding:10px 12px;border-radius:8px;margin-bottom:12px}
-    .alert--ok{background:#e7f6ea;border:1px solid #ccead2}
-    .alert--err{background:#fdeaea;border:1px solid #f5c2c2}
-    .lock{opacity:.6;pointer-events:none}
   </style>
 </head>
 <body>
@@ -40,117 +37,144 @@
     <h1>Ajouter une commande (PO)</h1>
   </div>
 
-  {% if message_ok %}
-    <div class="alert alert--ok">{{ message_ok }}</div>
-  {% endif %}
-  {% if message_error %}
-    <div class="alert alert--err">{{ message_error }}</div>
-  {% endif %}
-
-  <form class="toolbar {% if locked %}lock{% endif %}" action="/orders/add" method="post" id="po-form">
-    <button type="button" class="btn btn--muted" id="add-line">Ajouter une ligne</button>
-    <div style="flex:1"></div>
-    <a class="btn btn--ghost" href="/orders">Accueil</a>
-    <input type="hidden" name="json_payload" id="json_payload">
-    <button type="submit" class="btn">Add PO Command</button>
-  </form>
-
-  <div class="card grid {% if locked %}lock{% endif %}">
-    <table id="po-table">
-      <thead>
-        <tr>
-          <th style="width:180px">PO Number</th>
-          <th>Project name</th>
-          <th style="width:140px">Business Unit</th>
-          <th style="width:160px">RITM Request</th>
-          <th style="width:160px">Vendor</th>
-          <th style="width:200px">AP Code authorized</th>
-          <th style="width:60px"></th>
-        </tr>
-      </thead>
-      <tbody id="po-body">
-        <!-- rows injected by JS -->
-      </tbody>
-    </table>
+  <!-- Accueil is ALWAYS active -->
+  <div class="toolbar">
+    <div class="spacer"></div>
+    <a class="btn btn--ghost" href="/">Accueil</a>
+    {% if not locked %}
+      <button id="submitBtn" class="btn">Add PO Command</button>
+    {% endif %}
   </div>
 
   {% if locked %}
-    <div class="alert alert--err" style="margin-top:12px">
-      Un fichier <b>orders.json</b> existe déjà. La page est verrouillée jusqu’à suppression via
-      <code>DELETE /orders/json</code>.
+    <div class="card" style="padding:12px 14px">
+      <div class="alert">
+        Un fichier <b>orders.json</b> existe déjà. La page est verrouillée jusqu’à suppression via
+        <code>DELETE /orders/json</code>.
+      </div>
+    </div>
+  {% else %}
+    <!-- FORM AREA (only when unlocked) -->
+    <div class="card">
+      <div class="toolbar" style="border:0;border-bottom:1px solid var(--border);border-radius:0;margin:0">
+        <button id="addLine" class="btn btn--ghost" type="button">Ajouter une ligne</button>
+      </div>
+
+      <div style="overflow:auto; max-height:70vh">
+        <table id="poTable">
+          <thead>
+            <tr>
+              <th>PO Number</th>
+              <th>Project Name</th>
+              <th>Business Unit</th>
+              <th>RITM Request</th>
+              <th>Vendor</th>
+              <th>AP Code Authorized</th>
+              <th class="row-actions">—</th>
+            </tr>
+          </thead>
+          <tbody id="poBody">
+            <!-- rows injected by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Hidden field posted to server -->
+      <form id="poForm" method="post" action="/orders/add" style="display:none">
+        <input type="hidden" name="json_payload" id="json_payload">
+      </form>
     </div>
   {% endif %}
 
 </div>
 
+{% if not locked %}
 <script>
 (function(){
-  const locked = {{ 'true' if locked else 'false' }};
-  const body   = document.getElementById('po-body');
-  const addBtn = document.getElementById('add-line');
-  const form   = document.getElementById('po-form');
-  const hidden = document.getElementById('json_payload');
+  const body   = document.getElementById('poBody');
+  const addBtn = document.getElementById('addLine');
+  const submit = document.getElementById('submitBtn');
+  const form   = document.getElementById('poForm');
+  const out    = document.getElementById('json_payload');
 
   function newRow(){
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input class="input" name="po_number[]" required></td>
-      <td><input class="input" name="project_name[]" required></td>
-      <td><input class="input" name="business_unit[]" required></td>
-      <td><input class="input" name="ritm_request[]" required></td>
-      <td>
-        <select class="input" name="vendor[]" required>
-          <option value="Dell">Dell</option>
-        </select>
-      </td>
-      <td><input class="input" name="ap_code[]" required></td>
-      <td class="row-actions">
-        <button type="button" class="btn btn--ghost" onclick="this.closest('tr').remove()">🗑️</button>
-      </td>`;
-    return tr;
+
+    // PO Number
+    let td = document.createElement('td');
+    td.innerHTML = '<input class="input" name="po_number" required>';
+    tr.appendChild(td);
+
+    // Project Name
+    td = document.createElement('td');
+    td.innerHTML = '<input class="input" name="project_name" required>';
+    tr.appendChild(td);
+
+    // Business Unit
+    td = document.createElement('td');
+    td.innerHTML = '<input class="input" name="business_unit" required>';
+    tr.appendChild(td);
+
+    // RITM Request
+    td = document.createElement('td');
+    td.innerHTML = '<input class="input" name="ritm_request">';
+    tr.appendChild(td);
+
+    // Vendor (only DELL)
+    td = document.createElement('td');
+    td.innerHTML =
+      '<select class="input" name="vendor" required>' +
+      '  <option value="dell" selected>Dell</option>' +
+      '</select>';
+    tr.appendChild(td);
+
+    // AP code
+    td = document.createElement('td');
+    td.innerHTML = '<input class="input" name="ap_code_authorized">';
+    tr.appendChild(td);
+
+    // Actions
+    td = document.createElement('td'); td.className='row-actions';
+    td.innerHTML = '<button type="button" class="btn btn--ghost" onclick="this.closest(\'tr\').remove()">🗑</button>';
+    tr.appendChild(td);
+
+    body.appendChild(tr);
   }
 
-  if (!locked) {
-    // start with one empty line
-    body.appendChild(newRow());
-  }
-
-  addBtn?.addEventListener('click', () => {
-    if (!locked) body.appendChild(newRow());
-  });
-
-  form?.addEventListener('submit', (e) => {
-    if (locked) return; // nothing to do when locked
-    e.preventDefault();
-
-    const rows = Array.from(body.querySelectorAll('tr'));
-    const orders = [];
-
-    rows.forEach(tr => {
-      const get = (sel) => (tr.querySelector(sel)?.value || '').trim();
-
-      const line = {
-        po_number:       get('input[name="po_number[]"]'),
-        project_name:    get('input[name="project_name[]"]'),
-        business_unit:   get('input[name="business_unit[]"]'),
-        ritm_request:    get('input[name="ritm_request[]"]'),
-        vendor:          get('select[name="vendor[]"]') || 'Dell',
-        ap_code_authorized: get('input[name="ap_code[]"]'),
-        // Inject status here per spec:
-        status: 'pending'
+  function collect(){
+    const rows = [...body.querySelectorAll('tr')];
+    const orders = rows.map(tr => {
+      const g = name => (tr.querySelector(`[name="${name}"]`) || {}).value || '';
+      return {
+        po_number: g('po_number').trim(),
+        project_name: g('project_name').trim(),
+        business_unit: g('business_unit').trim(),
+        ritm_request: g('ritm_request').trim(),
+        vendor: 'dell',              // fixed
+        ap_code_authorized: g('ap_code_authorized').trim(),
+        status: 'pending'            // fixed per your instruction
       };
+    }).filter(o => o.po_number || o.project_name || o.business_unit);
 
-      // skip completely empty lines
-      if (Object.values(line).some(v => v !== '')) {
-        orders.push(line);
-      }
-    });
+    return { orders };
+  }
 
-    hidden.value = JSON.stringify({ orders });
+  addBtn.addEventListener('click', newRow);
+
+  submit.addEventListener('click', () => {
+    const payload = collect();
+    if (payload.orders.length === 0){
+      alert("Ajoutez au moins une ligne.");
+      return;
+    }
+    out.value = JSON.stringify(payload);
     form.submit();
   });
+
+  // start with one empty row
+  newRow();
 })();
 </script>
-
+{% endif %}
 </body>
 </html>
