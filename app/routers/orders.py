@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
-from app.db.database import get_connection  # your existing helper
+from app.db.database import get_connection
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -16,7 +16,6 @@ def list_orders(
     per_page: int = Query(10, ge=1, le=100),
 ):
     offset = (page - 1) * per_page
-
     where_sql = ""
     params_count: list = []
     params_rows: list = []
@@ -37,7 +36,6 @@ def list_orders(
       FROM supchain.t_order_servers
       {where_sql}
     """
-
     rows_sql = f"""
       SELECT
         t_order_servers_id,
@@ -58,25 +56,16 @@ def list_orders(
     cur = conn.cursor()
     cur.execute(count_sql, tuple(params_count))
     total = cur.fetchone()[0]
-
     cur.execute(rows_sql, tuple(params_rows + [per_page, offset]))
     rows = cur.fetchall()
     conn.close()
 
     return templates.TemplateResponse(
         "orders.html",
-        {
-            "request": request,
-            "rows": rows,
-            "q": q or "",
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-        },
+        {"request": request, "rows": rows, "q": q or "", "page": page, "per_page": per_page, "total": total},
     )
 
 
-# ---------- Dell detail (AER_BMAAS-84) + children (product -> asset_details -> mac)
 @router.get("/orders/{order_id}/dell", response_class=HTMLResponse)
 def dell_detail(request: Request, order_id: int):
     """
@@ -84,13 +73,12 @@ def dell_detail(request: Request, order_id: int):
     t_order_servers -> t_dell_orders -> t_product_info
                                     -> t_asset_details (via product_info_id)
                                     -> t_mac_address  (via asset_details_id)
-    No extra API calls.
     """
 
     conn = get_connection()
     cur = conn.cursor()
 
-    # Header (one row from t_dell_orders; keep exactly what we had working)
+    # Top header (same as before)
     head_sql = """
       SELECT
         d.order_number, d.order_date, d.quote_number, d.order_status, d.status_datetime
@@ -102,23 +90,15 @@ def dell_detail(request: Request, order_id: int):
       LIMIT 1
     """
     cur.execute(head_sql, (order_id,))
-    header = cur.fetchone()  # tuple or None
+    header = cur.fetchone()
 
-    # Flat rows for product + asset + mac (LEFT JOINs so it's safe when missing)
+    # Flat rows for product + asset + mac + **product's dell status**
     rows_sql = """
       SELECT
-        p.id                           AS product_id,
-        p.sku_number,
-        p.description,
-        p.item_quantity,
-        p.line_of_business,
-
-        ad.id                          AS asset_id,
-        ad.service_tag,
-        ad.asset_tag,
-
-        ma.mac_address,
-        ma.mac_type
+        p.id, p.sku_number, p.description, p.item_quantity, p.line_of_business,
+        d.order_status, d.status_datetime,               -- << added
+        ad.id, ad.service_tag, ad.asset_tag,
+        ma.mac_address, ma.mac_type
       FROM supchain.t_order_servers s
       LEFT JOIN supchain.t_dell_orders d
         ON s.t_order_servers_id = d.purchase_order_id
@@ -135,51 +115,40 @@ def dell_detail(request: Request, order_id: int):
     flat_rows = cur.fetchall()
     conn.close()
 
-    # Build nested structure: products -> assets -> macs
+    # Build nested structure with per-product status
     products_map: dict[int, dict] = {}
-    for r in flat_rows:
-        (pid, sku, desc, qty, lob,
+    for (pid, sku, desc, qty, lob,
+         p_status, p_status_dt,
          aid, service_tag, asset_tag,
-         mac_addr, mac_type) = r
+         mac_addr, mac_type) in flat_rows:
 
         if pid is None:
-            # no product rows (possible if only header exists)
             continue
 
-        prod = products_map.get(pid)
-        if not prod:
-            prod = {
-                "product_id": pid,
-                "sku": sku or "",
-                "description": desc or "",
-                "qty": qty or 0,
-                "lob": lob or "",
-                "assets": {}
-            }
-            products_map[pid] = prod
+        prod = products_map.setdefault(pid, {
+            "product_id": pid,
+            "sku": sku or "",
+            "description": desc or "",
+            "qty": qty or 0,
+            "lob": lob or "",
+            "status": p_status or "",          # << keep status per product
+            "status_dt": p_status_dt,          # optional
+            "assets": {}
+        })
 
         if aid:
-            asset = prod["assets"].get(aid)
-            if not asset:
-                asset = {
-                    "asset_id": aid,
-                    "service_tag": service_tag or "",
-                    "asset_tag": asset_tag or "",
-                    "macs": []
-                }
-                prod["assets"][aid] = asset
-
+            asset = prod["assets"].setdefault(aid, {
+                "asset_id": aid,
+                "service_tag": service_tag or "",
+                "asset_tag": asset_tag or "",
+                "macs": []
+            })
             if mac_addr:
-                asset["macs"].append({
-                    "mac_address": mac_addr,
-                    "mac_type": mac_type or ""
-                })
+                asset["macs"].append({"mac_address": mac_addr, "mac_type": mac_type or ""})
 
-    # convert assets dicts to lists for the template
     products = []
     for prod in products_map.values():
-        assets_list = list(prod["assets"].values())
-        prod["assets"] = assets_list
+        prod["assets"] = list(prod["assets"].values())
         products.append(prod)
 
     return templates.TemplateResponse(
@@ -187,7 +156,7 @@ def dell_detail(request: Request, order_id: int):
         {
             "request": request,
             "order_id": order_id,
-            "header": header,      # tuple: (order_number, order_date, quote, status, status_datetime)
-            "products": products,  # list[ { sku, description, qty, lob, assets:[{service_tag, asset_tag, macs:[...]}] } ]
+            "header": header,      # (order_number, order_date, quote, status, status_datetime)
+            "products": products,  # each has .status now
         },
     )
