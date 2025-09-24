@@ -12,27 +12,16 @@
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
     .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
     .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
-    .hero img{height:28px}
-    .hero h1{margin:0;font-size:18px}
+    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
     .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
     .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
     .muted{color:var(--muted)}
     .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
-    .ok{background:#e7f6ea}
-    .warn{background:#fff8e1}
-    .bad{background:#fdeaea}
+    .ok{background:#e7f6ea}.warn{background:#fff8e1}.bad{background:#fdeaea}
 
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th, td{
-      border-bottom:1px solid var(--border);
-      padding:10px;
-      text-align:center;        /* center everything */
-      vertical-align:middle;
-    }
-    thead th{
-      position:sticky;top:0;background:#fbfbfc;color:var(--muted);
-      text-transform:uppercase;font-size:12px
-    }
+    thead th, td{border-bottom:1px solid var(--border);padding:10px;text-align:center;vertical-align:middle}
+    thead th{position:sticky;top:0;background:#fbfbfc;color:var(--muted);text-transform:uppercase;font-size:12px}
 
     .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;padding:2px 8px}
     .child{display:none;background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;padding:10px;margin-top:8px}
@@ -44,21 +33,18 @@
 <body>
 <div class="shell">
 
-  <!-- Header -->
   <div class="hero">
     <img src="/static/bnp_logo.png" alt="BNP">
     <h1>Suivi Dell – Commande {{ (header and header[0]) or order_id }}</h1>
   </div>
 
-  <!-- Top toolbar with back + dynamic status like before -->
   <div class="toolbar">
     <a class="btn" href="/orders">← Retour aux commandes</a>
     {% if header %}
-      {# header = (order_number, order_date, quote_number, status, status_datetime) #}
       <div class="muted">
         N° devis: <b>{{ header[2] or '—' }}</b> •
-        Statut:
-        {% set s = (header[3] or '') %}
+        Statut global:
+        {% set s=(header[3] or '') %}
         {% if s|lower == 'shipped' %}
           <span class="pill ok">{{ s }}</span>
         {% elif s|lower in ['confirmed','in progress','processing','pending'] %}
@@ -73,7 +59,7 @@
     {% endif %}
   </div>
 
-  <!-- Main products table -->
+  <!-- Products (now with a Status column per product/dell order) -->
   <div class="card" style="overflow:auto; max-height:70vh">
     <table>
       <thead>
@@ -82,6 +68,7 @@
           <th>Description</th>
           <th>Qté</th>
           <th>LOB</th>
+          <th>Statut</th>
           <th>Assets</th>
         </tr>
       </thead>
@@ -93,20 +80,28 @@
             <td>{{ p.qty or '—' }}</td>
             <td>{{ p.lob or '—' }}</td>
             <td>
-              {% if p.assets and p.assets|length > 0 %}
-                <button class="toggle" onclick="toggleChild('a{{ p.product_id }}')">+</button>
+              {% set ps = (p.status or '') %}
+              {% if ps|lower == 'shipped' %}
+                <span class="pill ok">{{ ps }}</span>
+              {% elif ps|lower in ['confirmed','in progress','processing','pending'] %}
+                <span class="pill warn">{{ ps }}</span>
+              {% elif ps %}
+                <span class="pill bad">{{ ps }}</span>
               {% else %}
-                —
+                <span class="pill">—</span>
               {% endif %}
+            </td>
+            <td>
+              {% if p.assets and p.assets|length>0 %}
+                <button class="toggle" onclick="toggleChild('a{{ p.product_id }}')">+</button>
+              {% else %}—{% endif %}
             </td>
           </tr>
 
-          {% if p.assets and p.assets|length > 0 %}
+          {% if p.assets and p.assets|length>0 %}
             <tr id="a{{ p.product_id }}" class="child">
-              <td colspan="5">
-                <div style="text-align:left">
-                  <b>Détails des assets ({{ p.assets|length }})</b>
-                </div>
+              <td colspan="6">
+                <div style="text-align:left"><b>Détails des assets ({{ p.assets|length }})</b></div>
                 <table style="margin-top:8px; width:100%">
                   <thead>
                     <tr>
@@ -125,9 +120,7 @@
                             {% for m in a.macs %}
                               <span class="mac-badge">{{ m.mac_address }}{% if m.mac_type %} ({{ m.mac_type }}){% endif %}</span>
                             {% endfor %}
-                          {% else %}
-                            —
-                          {% endif %}
+                          {% else %}—{% endif %}
                         </td>
                       </tr>
                     {% endfor %}
@@ -139,7 +132,7 @@
         {% endfor %}
 
         {% if products|length == 0 %}
-          <tr><td colspan="5" class="muted" style="text-align:left">Aucun produit associé à cette commande.</td></tr>
+          <tr><td colspan="6" class="muted" style="text-align:left">Aucun produit associé à cette commande.</td></tr>
         {% endif %}
       </tbody>
     </table>
