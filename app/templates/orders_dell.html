@@ -79,8 +79,7 @@
             <td>{{ p.qty or '—' }}</td>
             <td>{{ p.lob or '—' }}</td>
             <td>
-              {# fallback to global status if product status is empty #}
-              {% set ps = (p.status or (header and header[3]) or '') %}
+              {% set ps = p.status or '' %}
               {% if ps|lower == 'shipped' %}
                 <span class="pill ok">{{ ps }}</span>
               {% elif ps|lower in ['confirmed','in progress','processing','pending'] %}
