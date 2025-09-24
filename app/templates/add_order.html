@@ -6,148 +6,151 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --brand:#14823b; --ink:#1f2937; --muted:#6b7280; --bg:#f7f7f9;
-      --card:#fff; --border:#e5e7eb; --danger:#8a1d1d; --success:#116d37;
-      --success-bg:#e7f6ea; --danger-bg:#fdeaea;
-    }
-    html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
-    .shell{max-width:1100px;margin:24px auto;padding:0 16px}
-    .hero{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
-    .hero h1{font-size:18px;margin:0}
-    .hint{color:var(--muted);margin-left:auto}
-    .alert{margin:12px 0;padding:10px 12px;border-radius:8px;border:1px solid transparent}
-    .alert.success{background:var(--success-bg);border-color:#cdebd7;color:var(--success)}
-    .alert.error{background:var(--danger-bg);border-color:#f5c2c2;color:var(--danger)}
-    .locked{background:#fff6d8;border:1px solid #f3e3a4;color:#5c4b00}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px}
-    .btn{border:0;background:var(--brand);color:#fff;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
+    :root{--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--card:#fff;--bg:#f7f7f9;--brand:#14823b}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
+    .shell{max-width:1200px;margin:24px auto;padding:0 16px}
+    .hero,.toolbar,.card{background:var(--card);border:1px solid var(--border);border-radius:10px}
+    .hero{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px}
+    .hero img{height:28px}.hero h1{margin:0;font-size:18px}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;margin-bottom:14px}
+    .btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer}
+    .btn--ghost{background:#fff;color:#111;border:1px solid var(--border)}
+    .btn--muted{background:#f3f4f6;color:#111;border:1px solid var(--border)}
+    .input{border:1px solid var(--border);border-radius:8px;padding:8px 10px;width:100%}
+    .card{padding:0}
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;color:var(--muted);padding:8px}
-    td{border-bottom:1px solid var(--border);padding:8px}
-    input,select{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:#fff;font:inherit}
-    .row-actions{display:flex;gap:6px}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:middle}
+    .row-actions{white-space:nowrap}
+    .muted{color:var(--muted)}
+    .grid{overflow:auto}
+    .alert{padding:10px 12px;border-radius:8px;margin-bottom:12px}
+    .alert--ok{background:#e7f6ea;border:1px solid #ccead2}
+    .alert--err{background:#fdeaea;border:1px solid #f5c2c2}
+    .lock{opacity:.6;pointer-events:none}
   </style>
-  <script>
-    // ----- dynamic rows -----
-    function newRow(data={}){
-      const tr = document.createElement('tr');
-      tr.className = 'order-row';
-      tr.innerHTML = `
-        <td><input name="po_number" value="${data.po_number||''}" required></td>
-        <td><input name="project_name" value="${data.project_name||''}" required></td>
-        <td><input name="business_unit" value="${data.business_unit||''}" required></td>
-        <td><input name="ritm_request" value="${data.ritm_request||''}" required></td>
-        <td><input name="vendor" value="${data.vendor||''}" required></td>
-        <td><input name="workflow_achat_id" type="number" step="1" min="0" value="${data.workflow_achat_id??''}" required></td>
-        <td>
-          <select name="status" required>
-            ${['Requested','Ordered','Shipped','Delivered'].map(s=>`<option ${data.status===s?'selected':''}>${s}</option>`).join('')}
-          </select>
-        </td>
-        <td><input name="ap_code_authorized" value="${data.ap_code_authorized||''}"></td>
-        <td class="row-actions">
-          <button type="button" onclick="removeRow(this)">🗑</button>
-        </td>`;
-      return tr;
-    }
-    function addRow(prefill){ document.querySelector('#rows').appendChild(newRow(prefill||{})); }
-    function removeRow(btn){ btn.closest('tr').remove(); updateSubmitState(); }
-
-    // ----- payload build -----
-    function collectAndSubmit(){
-      const rows = Array.from(document.querySelectorAll('.order-row'));
-      const orders = rows.map(r=>{
-        const get = n => r.querySelector(`[name="${n}"]`).value.trim();
-        const num = n => {
-          const v = r.querySelector(`[name="${n}"]`).value.trim();
-          return v==="" ? null : Number(v);
-        };
-        return {
-          po_number: get('po_number'),
-          project_name: get('project_name'),
-          business_unit: get('business_unit'),
-          ritm_request: get('ritm_request'),
-          vendor: get('vendor').toLowerCase(),   // règle historique: vendor en lowercase
-          workflow_achat_id: num('workflow_achat_id'),
-          status: get('status'),
-          ap_code_authorized: get('ap_code_authorized')
-        };
-      }).filter(o => o.po_number !== "");
-
-      document.getElementById('json_payload').value = JSON.stringify({orders});
-      return true;
-    }
-
-    function updateSubmitState(){
-      const anyRow = document.querySelectorAll('.order-row').length > 0;
-      document.getElementById('btn-submit').disabled = !anyRow;
-    }
-
-    document.addEventListener('DOMContentLoaded', ()=>{
-      if (!{{ 'true' if locked else 'false' }}){
-        addRow(); // start with one empty line
-        updateSubmitState();
-      }
-    });
-  </script>
 </head>
 <body>
-  <div class="shell">
-    <div class="hero">
-      <h1>Ajouter une commande (PO)</h1>
-      <div class="hint">Les commandes saisies sont regroupées dans un seul JSON (PV).</div>
-    </div>
+<div class="shell">
 
-    {% if message_ok %}<div class="alert success">{{ message_ok }}</div>{% endif %}
-    {% if message_error %}<div class="alert error">{{ message_error }}</div>{% endif %}
-
-    {% if locked %}
-      <div class="alert locked">
-        Un fichier <strong>orders.json</strong> existe déjà sur le PV (traitement en cours).
-        L’interface est verrouillée jusqu’à suppression via <code>DELETE /orders/json</code>.
-      </div>
-    {% endif %}
-
-    <div class="card">
-      <form method="post" action="/orders/add" onsubmit="return collectAndSubmit()">
-        <input type="hidden" id="json_payload" name="json_payload" value="">
-        <div class="toolbar">
-          <button type="button" class="btn" onclick="addRow()" {% if locked %}disabled{% endif %}>Ajouter une ligne</button>
-          <div style="flex:1"></div>
-          <button id="btn-submit" class="btn" {% if locked %}disabled{% endif %}>Générer le JSON</button>
-        </div>
-
-        <div style="overflow:auto; max-height:70vh">
-          <table>
-            <thead>
-              <tr>
-                <th>PO Number</th>
-                <th>Project Name</th>
-                <th>Business Unit</th>
-                <th>RITM Request</th>
-                <th>Vendor</th>
-                <th>Workflow Achat ID</th>
-                <th>Status</th>
-                <th>AP Code Authorized</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="rows">
-              {% if locked %}
-              <!-- When locked, show nothing editable -->
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
-      </form>
-    </div>
+  <div class="hero">
+    <img src="/static/bnp_logo.png" alt="BNP">
+    <h1>Ajouter une commande (PO)</h1>
   </div>
 
-  {% if not locked %}
-  <script>updateSubmitState()</script>
+  {% if message_ok %}
+    <div class="alert alert--ok">{{ message_ok }}</div>
   {% endif %}
+  {% if message_error %}
+    <div class="alert alert--err">{{ message_error }}</div>
+  {% endif %}
+
+  <form class="toolbar {% if locked %}lock{% endif %}" action="/orders/add" method="post" id="po-form">
+    <button type="button" class="btn btn--muted" id="add-line">Ajouter une ligne</button>
+    <div style="flex:1"></div>
+    <a class="btn btn--ghost" href="/orders">Accueil</a>
+    <input type="hidden" name="json_payload" id="json_payload">
+    <button type="submit" class="btn">Add PO Command</button>
+  </form>
+
+  <div class="card grid {% if locked %}lock{% endif %}">
+    <table id="po-table">
+      <thead>
+        <tr>
+          <th style="width:180px">PO Number</th>
+          <th>Project name</th>
+          <th style="width:140px">Business Unit</th>
+          <th style="width:160px">RITM Request</th>
+          <th style="width:160px">Vendor</th>
+          <th style="width:200px">AP Code authorized</th>
+          <th style="width:60px"></th>
+        </tr>
+      </thead>
+      <tbody id="po-body">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  {% if locked %}
+    <div class="alert alert--err" style="margin-top:12px">
+      Un fichier <b>orders.json</b> existe déjà. La page est verrouillée jusqu’à suppression via
+      <code>DELETE /orders/json</code>.
+    </div>
+  {% endif %}
+
+</div>
+
+<script>
+(function(){
+  const locked = {{ 'true' if locked else 'false' }};
+  const body   = document.getElementById('po-body');
+  const addBtn = document.getElementById('add-line');
+  const form   = document.getElementById('po-form');
+  const hidden = document.getElementById('json_payload');
+
+  function newRow(){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="input" name="po_number[]" required></td>
+      <td><input class="input" name="project_name[]" required></td>
+      <td><input class="input" name="business_unit[]" required></td>
+      <td><input class="input" name="ritm_request[]" required></td>
+      <td>
+        <select class="input" name="vendor[]" required>
+          <option value="Dell">Dell</option>
+        </select>
+      </td>
+      <td><input class="input" name="ap_code[]" required></td>
+      <td class="row-actions">
+        <button type="button" class="btn btn--ghost" onclick="this.closest('tr').remove()">🗑️</button>
+      </td>`;
+    return tr;
+  }
+
+  if (!locked) {
+    // start with one empty line
+    body.appendChild(newRow());
+  }
+
+  addBtn?.addEventListener('click', () => {
+    if (!locked) body.appendChild(newRow());
+  });
+
+  form?.addEventListener('submit', (e) => {
+    if (locked) return; // nothing to do when locked
+    e.preventDefault();
+
+    const rows = Array.from(body.querySelectorAll('tr'));
+    const orders = [];
+
+    rows.forEach(tr => {
+      const get = (sel) => (tr.querySelector(sel)?.value || '').trim();
+
+      const line = {
+        po_number:       get('input[name="po_number[]"]'),
+        project_name:    get('input[name="project_name[]"]'),
+        business_unit:   get('input[name="business_unit[]"]'),
+        ritm_request:    get('input[name="ritm_request[]"]'),
+        vendor:          get('select[name="vendor[]"]') || 'Dell',
+        ap_code_authorized: get('input[name="ap_code[]"]'),
+        // Inject status here per spec:
+        status: 'pending'
+      };
+
+      // skip completely empty lines
+      if (Object.values(line).some(v => v !== '')) {
+        orders.push(line);
+      }
+    });
+
+    hidden.value = JSON.stringify({ orders });
+    form.submit();
+  });
+})();
+</script>
+
 </body>
 </html>
