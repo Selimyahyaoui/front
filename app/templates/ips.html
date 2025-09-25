@@ -6,66 +6,69 @@
   <link rel="stylesheet" href="/static/style.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    /* Reuse the same catalogue look */
+    :root{
+      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+      --card:#fff; --bg:#f7f7f9; --brand:#14823b;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial}
     .shell{max-width:1200px;margin:24px auto;padding:0 16px}
-    .hero{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px}
+
+    .hero{display:flex;align-items:center;gap:12px;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
     .hero img{height:28px}
-    .hero h1{font-size:18px;margin:0}
-    .hero .pill{margin-left:auto;font-size:12px;color:#6b7280}
+    .hero h1{margin:0;font-size:18px}
 
-    .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+    .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--card);
+      border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px}
     .toolbar .spacer{flex:1}
-    .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 10px;font-weight:600;cursor:pointer}
-    .btn-primary{background:#16a34a;color:#fff;border-color:#16a34a}
-    .input{border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;min-width:240px}
-    .select{border:1px solid #e5e7eb;border-radius:8px;padding:6px 8px}
+    .btn{background:#fff;color:#111;border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-weight:600}
+    .btn--ghost{background:#fff}
+    .input{border:1px solid var(--border);border-radius:8px;padding:6px 10px}
 
-    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
     table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:700;text-transform:uppercase;color:#6b7280;padding:10px}
-    tbody td{border-bottom:1px solid #e5e7eb;padding:10px}
+    thead th{position:sticky;top:0;background:#fbfbfc;border-bottom:1px solid var(--border);
+      font-size:12px;text-transform:uppercase;color:var(--muted);padding:10px}
+    td{border-bottom:1px solid var(--border);padding:10px;vertical-align:middle}
     tbody tr:nth-child(odd){background:#fcfcfe}
 
-    .badges{font-size:13px;font-weight:700;border-radius:999px;padding:2px 10px;display:inline-block}
-    .yes{background:#e6f9ed;color:#0f6d3d;border:1px solid #bfead0}
-    .no{background:#fdeaea;color:#8a1d1d;border:1px solid #f5c2c2}
+    .pill{display:inline-block;font-size:12px;border-radius:12px;padding:2px 8px;border:1px solid var(--border)}
+    .ok{background:#e7f6ea}
+    .bad{background:#fdeaea}
+    .muted{color:var(--muted)}
 
-    .pagination{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px}
-    .pagination a{border:1px solid #e5e7eb;border-radius:8px;padding:6px 10px;text-decoration:none;color:#111827}
-    .muted{color:#6b7280}
+    .toggle{cursor:pointer;font-weight:700;border:1px solid var(--border);background:#fff;border-radius:6px;
+      width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center}
+    .child{display:none;background:#fcfcfe;border:1px dashed var(--border);border-radius:8px;margin:8px 0;padding:8px}
+    .child table{background:#fff;border:1px solid var(--border);border-radius:8px}
+    .child thead th{position:static}
   </style>
 </head>
 <body>
-  <div class="shell">
-    <!-- Header banner -->
-    <div class="hero">
-      <img src="/static/bnp_logo.png" alt="BNP">
-      <h1>IPs disponibles via DHCP</h1>
-      <div class="pill muted">Recherche et pagination</div>
-    </div>
+<div class="shell">
 
-    <!-- Toolbar: search + per page + actions -->
-    <form method="get" action="/ips" class="toolbar">
-      <input type="text" name="q" class="input" placeholder="Chercher (id, réseau, vlan, hostname, site)" value="{{ q or '' }}">
-      <button type="submit" class="btn btn-primary">Chercher</button>
+  <div class="hero">
+    <img src="/static/bnp_logo.png" alt="BNP">
+    <h1>IPs disponibles via DHCP</h1>
+  </div>
 
-      <div class="spacer"></div>
+  <form class="toolbar" action="/ips" method="get">
+    <input class="input" name="q" value="{{ q }}" placeholder="Rechercher (id, réseau, vlan, infoblox, site)…">
+    <div class="spacer"></div>
+    <label class="muted">Par page
+      <select class="input" name="per_page" onchange="this.form.submit()">
+        {% for n in [10,20,50,100] %}
+          <option value="{{ n }}" {% if per_page==n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn--ghost" type="submit">Chercher</button>
+    <a class="btn btn--ghost" href="/">Accueil</a>
+  </form>
 
-      <label class="muted">Par page&nbsp;
-        <select name="per_page" class="select" onchange="this.form.submit()">
-          {% for n in [10,20,50,100] %}
-            <option value="{{n}}" {% if per_page==n %}selected{% endif %}>{{n}}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <a class="btn" href="/">Accueil</a>
-
-      <!-- preserve current page when searching/changing per_page -->
-      <input type="hidden" name="page" value="{{ page }}">
-    </form>
-
-    <!-- Table -->
-    <div class="card">
+  <div class="card">
+    <div style="overflow:auto; max-height:70vh">
       <table>
         <thead>
           <tr>
@@ -79,46 +82,118 @@
             <th>Date ajout</th>
             <th>Infoblox / Hostname</th>
             <th>Disponibilité</th>
+            <th style="text-align:center;">Détails</th>
           </tr>
         </thead>
         <tbody>
-          {% for ip in ips %}
+          {% for r in rows %}
+          {# parent tuple indices match SELECT order from router #}
+          {% set ref_id   = r[0] %}
+          {% set site_id  = r[1] %}
+          {% set vlan_id  = r[2] %}
+          {% set network  = r[3] %}
+          {% set add_by   = r[4] %}
+          {% set chg_by   = r[5] %}
+          {% set date_add = r[6] %}
+          {% set date_upd = r[7] %}
+          {% set infoblox = r[8] %}
+          {% set avail    = (r[9] or '')|upper %}
           <tr>
-            <td>{{ ip.id }}</td>
-            <td>{{ ip.site }}</td>
-            <td>{{ ip.vlan_id }}</td>
-            <td>{{ ip.network }}</td>
-            <td>{{ ip.added_by or 'None' }}</td>
-            <td>{{ ip.changed_by or 'None' }}</td>
-            <td>{{ ip.date_update or 'None' }}</td>
-            <td>{{ ip.date_add or 'None' }}</td>
-            <td>{{ ip.infoblox or '—' }}</td>
+            <td>{{ ref_id }}</td>
+            <td>{{ site_id }}</td>
+            <td>{{ vlan_id }}</td>
+            <td>{{ network }}</td>
+            <td>{{ add_by }}</td>
+            <td>{{ chg_by or 'None' }}</td>
+            <td>{{ date_upd or 'None' }}</td>
+            <td>{{ date_add or '—' }}</td>
+            <td>{{ infoblox }}</td>
             <td>
-              {% if (ip.availability or '')|upper == 'YES' %}
-                <span class="badges yes">YES</span>
-              {% elif (ip.availability or '')|upper == 'NO' %}
-                <span class="badges no">NO</span>
+              {% if avail == 'YES' %}
+                <span class="pill ok">YES</span>
+              {% elif avail == 'NO' %}
+                <span class="pill bad">NO</span>
               {% else %}
-                <span class="muted">—</span>
+                <span class="pill">N/A</span>
               {% endif %}
+            </td>
+            <td style="text-align:center;">
+              <button class="toggle" type="button" onclick="toggleChild('{{ ref_id }}')">+</button>
+            </td>
+          </tr>
+          <tr class="child" id="child-{{ ref_id }}">
+            <td colspan="11">
+              <div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>ID détail</th>
+                      <th>Hostname</th>
+                      <th>IP</th>
+                      <th>MAC address</th>
+                      <th>Date ajout</th>
+                      <th>Dernière maj</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% set kids = children.get(ref_id, []) %}
+                    {% for c in kids %}
+                      <tr>
+                        <td>{{ c[1] }}</td>
+                        <td>{{ c[2] or '—' }}</td>
+                        <td>{{ c[3] or '—' }}</td>
+                        <td>{{ c[4] or '—' }}</td>
+                        <td>{{ c[5] or '—' }}</td>
+                        <td>{{ c[6] or '—' }}</td>
+                      </tr>
+                    {% endfor %}
+                    {% if kids|length == 0 %}
+                      <tr><td colspan="6" class="muted">Aucun détail DHCP pour cette entrée.</td></tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
             </td>
           </tr>
           {% endfor %}
+
+          {% if rows|length == 0 %}
+            <tr><td colspan="11" class="muted">Aucun enregistrement.</td></tr>
+          {% endif %}
         </tbody>
       </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="pagination">
-      {% set last = (total // per_page) + (1 if (total % per_page) else 0) %}
+    <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:12px">
+      {% set last_page = (total // per_page) + (1 if (total % per_page)>0 else 0) %}
+      <span class="muted">Page {{ page }} • Total: {{ total }}</span>
+      <div style="flex:1"></div>
       {% if page > 1 %}
-        <a href="/ips?page={{ page-1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Précédent</a>
+        <a class="btn btn--ghost" href="/ips?page={{ page-1 }}&per_page={{ per_page }}&q={{ q }}">Précédent</a>
+      {% else %}
+        <button class="btn btn--ghost" disabled>Précédent</button>
       {% endif %}
-      <span class="muted">Page {{ page }}</span>
-      {% if page < last %}
-        <a href="/ips?page={{ page+1 }}&per_page={{ per_page }}&q={{ q|urlencode }}">Suivant</a>
+      {% if page < last_page %}
+        <a class="btn btn--ghost" href="/ips?page={{ page+1 }}&per_page={{ per_page }}&q={{ q }}">Suivant</a>
+      {% else %}
+        <button class="btn btn--ghost" disabled>Suivant</button>
       {% endif %}
     </div>
   </div>
+
+</div>
+
+<script>
+  function toggleChild(id) {
+    const row = document.getElementById('child-' + id);
+    if (!row) return;
+    const open = row.style.display === 'table-row';
+    row.style.display = open ? 'none' : 'table-row';
+
+    // change button sign on the same line
+    const btns = row.previousElementSibling.querySelectorAll('.toggle');
+    btns.forEach(b => b.textContent = open ? '+' : '−');
+  }
+</script>
 </body>
 </html>
