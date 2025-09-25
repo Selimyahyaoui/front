@@ -1,94 +1,111 @@
+# app/routers/ips.py
 from fastapi import APIRouter, Request, Query
 from fastapi.responses import HTMLResponse
 from starlette.templating import Jinja2Templates
-
-from app.db.database import get_connection  # ← same helper you already use
+from app.db.database import get_connection  # your existing helper
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-# ---------- Page: list IPs with search + pagination ----------
 @router.get("/ips", response_class=HTMLResponse)
 def list_ips(
     request: Request,
-    q: str = Query("", description="search (id, site, vlan, network, hostname)"),
+    q: str | None = "",
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
 ):
     """
-    Lists rows from supchain.t_ref_dhcp with 'catalog' look:
-    - Search on id/site/vlan/network/infoblox (hostname)
-    - Pagination, 'per page' selector
+    List t_ref_dhcp (parent). Each row can expand to show child rows from t_result_dhcp.
     """
     offset = (page - 1) * per_page
-    params = {}  # used for both count and data queries
 
-    where = []
+    # Optional search on some parent fields (LOWER for case-insensitive)
+    where_sql = ""
+    params_count: list = []
+    params_rows: list = []
+
     if q:
-        # search across a few columns
-        where.append(
-            """(
-                CAST(t_ref_dhcp_id AS TEXT) ILIKE %(kw)s
-                OR CAST(t_ref_dhcp_t_site AS TEXT) ILIKE %(kw)s
-                OR CAST(t_ref_dhcp_id_vlan AS TEXT) ILIKE %(kw)s
-                OR t_ref_dhcp_network ILIKE %(kw)s
-                OR t_ref_dhcp_infoblox ILIKE %(kw)s
-            )"""
-        )
-        params["kw"] = f"%{q.strip()}%"
+        like = f"%{q.lower()}%"
+        where_sql = """
+        WHERE
+          LOWER(CAST(t_ref_dhcp_id AS TEXT))   LIKE %s OR
+          LOWER(CAST(t_ref_dhcp_t_site AS TEXT)) LIKE %s OR
+          LOWER(CAST(t_ref_dhcp_id_lan AS TEXT)) LIKE %s OR
+          LOWER(t_ref_dhcp_network)            LIKE %s OR
+          LOWER(CAST(t_ref_dhcp_infoblox AS TEXT)) LIKE %s
+        """
+        params_count.extend([like, like, like, like, like])
+        params_rows.extend([like, like, like, like, like])
 
-    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
-
-    # --- COUNT ---
-    count_sql = f"SELECT COUNT(*) FROM supchain.t_ref_dhcp {where_sql};"
-
-    # --- PAGE DATA ---
-    data_sql = f"""
-        SELECT
-            t_ref_dhcp_id,
-            t_ref_dhcp_t_site,
-            t_ref_dhcp_id_vlan,
-            t_ref_dhcp_network,
-            t_ref_dhcp_add_by,
-            t_ref_dhcp_change_by,
-            t_ref_dhcp_date_update,
-            t_ref_dhcp_date_add,
-            t_ref_dhcp_infoblox,
-            t_ref_dhcp_availability
-        FROM supchain.t_ref_dhcp
-        {where_sql}
-        ORDER BY t_ref_dhcp_id ASC
-        LIMIT %(limit)s OFFSET %(offset)s;
+    # Count parents
+    count_sql = f"""
+      SELECT COUNT(*)
+      FROM supchain.t_ref_dhcp
+      {where_sql}
     """
-    params["limit"] = per_page
-    params["offset"] = offset
+
+    # Fetch page of parents
+    rows_sql = f"""
+      SELECT
+        t_ref_dhcp_id,
+        t_ref_dhcp_t_site,
+        t_ref_dhcp_id_lan,
+        t_ref_dhcp_network,
+        t_ref_dhcp_add_by,
+        t_ref_dhcp_change_by,
+        t_ref_dhcp_date_add,
+        t_ref_dhcp_date_update,
+        t_ref_dhcp_infoblox,
+        t_ref_dhcp_availability
+      FROM supchain.t_ref_dhcp
+      {where_sql}
+      ORDER BY t_ref_dhcp_id DESC
+      LIMIT %s OFFSET %s
+    """
 
     conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(count_sql, params)
-            total = cur.fetchone()[0]
+    cur = conn.cursor()
 
-            cur.execute(data_sql, params)
-            rows = cur.fetchall()
-    finally:
-        conn.close()
+    cur.execute(count_sql, tuple(params_count))
+    total = cur.fetchone()[0]
 
-    # map rows into dicts for clearer template access
-    cols = [
-        "id", "site", "vlan_id", "network",
-        "added_by", "changed_by", "date_update", "date_add",
-        "infoblox", "availability"
-    ]
-    ips = [dict(zip(cols, r)) for r in rows]
+    cur.execute(rows_sql, tuple(params_rows + [per_page, offset]))
+    parent_rows = cur.fetchall()
+
+    # Build children map: { ref_dhcp_id: [ ...child rows... ] }
+    children_map: dict[int, list] = {}
+    parent_ids = [r[0] for r in parent_rows]
+    if parent_ids:
+        # Build an IN %(tuple)s safely
+        # psycopg2 doesn't expand %s for tuples unless we use IN %s with tuple
+        sql_children = """
+          SELECT
+            t_result_dhcp_id_ref_dhcp,
+            t_result_dhcp_id,
+            t_result_dhcp_host_a,
+            t_result_dhcp_ip,
+            t_result_dhcp_mac_address,
+            t_result_dhcp_date_add,
+            t_result_dhcp_date_update
+          FROM supchain.t_result_dhcp
+          WHERE t_result_dhcp_id_ref_dhcp = ANY(%s)
+          ORDER BY t_result_dhcp_id
+        """
+        cur.execute(sql_children, (parent_ids,))
+        for row in cur.fetchall():
+            ref_id = row[0]
+            children_map.setdefault(ref_id, []).append(row)
+
+    conn.close()
 
     return templates.TemplateResponse(
         "ips.html",
         {
             "request": request,
-            "ips": ips,
-            "q": q,
+            "rows": parent_rows,     # list of tuples (see SELECT order above)
+            "children": children_map,  # dict: parent_id -> list of child tuples
+            "q": q or "",
             "page": page,
             "per_page": per_page,
             "total": total,
